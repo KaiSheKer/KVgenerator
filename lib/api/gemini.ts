@@ -87,6 +87,7 @@ const ANALYSIS_PROMPT = `
 
 export async function analyzeProduct(imageBase64: string): Promise<AnalysisResponse> {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  const analysisModel = process.env.NEXT_PUBLIC_GEMINI_ANALYSIS_MODEL || 'gemini-2.5-flash';
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
@@ -96,11 +97,12 @@ export async function analyzeProduct(imageBase64: string): Promise<AnalysisRespo
 
   return withRetry(async () => {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${analysisModel}:generateContent`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
         },
         body: JSON.stringify({
           contents: [{

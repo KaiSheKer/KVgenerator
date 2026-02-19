@@ -1,9 +1,14 @@
+type SessionPayload<T> = {
+  data: T;
+  timestamp: number;
+};
+
 export class SessionManager {
   private static readonly SESSION_KEY = 'kv-generator-session';
   private static readonly MAX_AGE = 24 * 60 * 60 * 1000; // 24小时
 
-  static save(data: any) {
-    const session = {
+  static save<T>(data: T) {
+    const session: SessionPayload<T> = {
       data,
       timestamp: Date.now(),
     };
@@ -15,12 +20,12 @@ export class SessionManager {
     }
   }
 
-  static load(): any | null {
+  static load<T>(): T | null {
     try {
       const item = localStorage.getItem(this.SESSION_KEY);
       if (!item) return null;
 
-      const session = JSON.parse(item);
+      const session = JSON.parse(item) as SessionPayload<T>;
       const age = Date.now() - session.timestamp;
 
       if (age > this.MAX_AGE) {
@@ -44,7 +49,7 @@ export class SessionManager {
     if (!item) return true;
 
     try {
-      const session = JSON.parse(item);
+      const session = JSON.parse(item) as SessionPayload<unknown>;
       const age = Date.now() - session.timestamp;
       return age > this.MAX_AGE;
     } catch {

@@ -16,7 +16,7 @@ export default function EditPage() {
     if (!editedProductInfo) {
       router.push('/');
     }
-  }, [editedProductInfo]);
+  }, [editedProductInfo, router]);
 
   if (!editedProductInfo) {
     return null;

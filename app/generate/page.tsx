@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { useLoading } from '@/hooks/useLoading';
-import { generatePosterMock } from '@/lib/api/nanobanana';
+import { generatePoster, generatePosterMock } from '@/lib/api/nanobanana';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -23,25 +23,9 @@ export default function GeneratePage() {
   const { isLoading, progress, message, startLoading, updateProgress, stopLoading } = useLoading();
   const [postersProgress, setPostersProgress] = useState<PosterProgress[]>([]);
   const [completed, setCompleted] = useState(false);
+  const useMock = process.env.NEXT_PUBLIC_USE_MOCK !== 'false';
 
-  useEffect(() => {
-    if (!generatedPrompts) {
-      router.push('/');
-      return;
-    }
-
-    // 初始化进度
-    const initialProgress = generatedPrompts.posters.map(poster => ({
-      id: poster.id,
-      status: 'pending' as const,
-    }));
-    setPostersProgress(initialProgress);
-
-    // 开始生成
-    startGeneration();
-  }, [generatedPrompts]);
-
-  const startGeneration = async () => {
+  const startGeneration = useCallback(async () => {
     if (!generatedPrompts) return;
 
     startLoading('正在生成海报...');
@@ -53,7 +37,6 @@ export default function GeneratePage() {
       const poster = generatedPrompts.posters[i];
       const progressValue = Math.round(((i + 1) / total) * 100);
 
-      // 更新当前海报状态为生成中
       setPostersProgress(prev =>
         prev.map(p =>
           p.id === poster.id ? { ...p, status: 'generating' } : p
@@ -66,15 +49,16 @@ export default function GeneratePage() {
       );
 
       try {
-        // 使用模拟生成函数(开发测试用)
-        const url = await generatePosterMock({
+        const request = {
           prompt: poster.promptEn,
           negative: poster.negative,
           width: 720,
           height: 1280,
-        });
+        };
+        const url = useMock
+          ? await generatePosterMock(request)
+          : await generatePoster(request);
 
-        // 更新为完成状态
         setPostersProgress(prev =>
           prev.map(p =>
             p.id === poster.id
@@ -91,7 +75,6 @@ export default function GeneratePage() {
       } catch (error) {
         console.error(`生成海报 ${poster.id} 失败:`, error);
 
-        // 更新为失败状态
         setPostersProgress(prev =>
           prev.map(p =>
             p.id === poster.id
@@ -102,14 +85,28 @@ export default function GeneratePage() {
       }
     }
 
-    // 保存结果
     setGeneratedPosters(results);
-
-    // 完成
     updateProgress(100, '海报生成完成!');
     stopLoading();
     setCompleted(true);
-  };
+  }, [generatedPrompts, setGeneratedPosters, startLoading, stopLoading, updateProgress, useMock]);
+
+  useEffect(() => {
+    if (!generatedPrompts) {
+      router.push('/');
+      return;
+    }
+
+    // 初始化进度
+    const initialProgress = generatedPrompts.posters.map(poster => ({
+      id: poster.id,
+      status: 'pending' as const,
+    }));
+    setPostersProgress(initialProgress);
+
+    // 开始生成
+    startGeneration();
+  }, [generatedPrompts, router, startGeneration]);
 
   if (!generatedPrompts) {
     return null;

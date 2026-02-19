@@ -1,19 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { generatePrompts } from '@/lib/utils/promptGenerator';
-import type { PromptsSystem } from '@/contexts/AppContext';
 
 export default function PromptsPage() {
   const router = useRouter();
   const { editedProductInfo, selectedStyle, setGeneratedPrompts } = useAppContext();
-  const [prompts, setPrompts] = useState<PromptsSystem | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  const prompts = useMemo(() => {
+    if (!editedProductInfo || !selectedStyle) return null;
+    return generatePrompts(editedProductInfo, selectedStyle);
+  }, [editedProductInfo, selectedStyle]);
 
   useEffect(() => {
     if (!editedProductInfo || !selectedStyle) {
@@ -21,11 +24,10 @@ export default function PromptsPage() {
       return;
     }
 
-    // 生成提示词
-    const generatedPrompts = generatePrompts(editedProductInfo, selectedStyle);
-    setPrompts(generatedPrompts);
-    setGeneratedPrompts(generatedPrompts);
-  }, [editedProductInfo, selectedStyle]);
+    if (prompts) {
+      setGeneratedPrompts(prompts);
+    }
+  }, [editedProductInfo, prompts, router, selectedStyle, setGeneratedPrompts]);
 
   if (!editedProductInfo || !selectedStyle || !prompts) {
     return null;

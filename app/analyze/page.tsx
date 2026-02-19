@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { useLoading } from '@/hooks/useLoading';
@@ -47,7 +47,7 @@ export default function AnalyzePage() {
     };
 
     analyze();
-  }, [uploadedImage]);
+  }, [router, setProductInfo, startLoading, stopLoading, updateProgress, uploadedImage]);
 
   if (isLoading) {
     return <LoadingScreen progress={progress} message={message} />;

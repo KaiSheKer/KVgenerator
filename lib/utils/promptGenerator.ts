@@ -33,6 +33,13 @@ export function generatePrompts(
   } = productInfo;
 
   const { visual, typography, textLayout } = style;
+  const normalizedSellingPoints = Array.from({ length: 5 }, (_, index) => {
+    const point = sellingPoints[index];
+    return {
+      zh: point?.zh || `核心卖点${index + 1}`,
+      en: point?.en || `Key selling point ${index + 1}`,
+    };
+  });
 
   // 生成排版说明
   const getTypographyDesc = () => {
@@ -82,7 +89,7 @@ export function generatePrompts(
 - 规格: ${specifications}
 
 **核心卖点**:
-${sellingPoints.map((sp, i) => `${i + 1}. ${sp.zh} / ${sp.en}`).join('\n')}
+${normalizedSellingPoints.map((sp, i) => `${i + 1}. ${sp.zh} / ${sp.en}`).join('\n')}
 
 **设计风格**:
 ${getVisualStyleDesc(visual)}
@@ -117,7 +124,7 @@ Strictly reproduce the uploaded product image, including packaging design, color
 - Specifications: ${specifications}
 
 **Key Selling Points**:
-${sellingPoints.map((sp, i) => `${i + 1}. ${sp.en} / ${sp.zh}`).join('\n')}
+${normalizedSellingPoints.map((sp, i) => `${i + 1}. ${sp.en} / ${sp.zh}`).join('\n')}
 
 **Design Style**:
 ${getVisualStyleDescEn(visual)}
@@ -162,7 +169,7 @@ ${designStyle}, suitable for ${targetAudience}, brand tone ${brandTone}`,
 - 光线柔和,突出产品质感
 
 **文字内容**:
-- 主标题: "${sellingPoints[0].zh}" / "${sellingPoints[0].en}"
+- 主标题: "${normalizedSellingPoints[0].zh}" / "${normalizedSellingPoints[0].en}"
 - 副标题: 展示另外2个卖点
 - 品牌LOGO: 左上角
 
@@ -182,7 +189,7 @@ Background should match ${designStyle} style, creating ${brandTone} atmosphere.
 - Soft lighting highlighting product texture
 
 **Text Content**:
-- Main title: "${sellingPoints[0].en}" / "${sellingPoints[0].zh}"
+- Main title: "${normalizedSellingPoints[0].en}" / "${normalizedSellingPoints[0].zh}"
 - Subtitle: Display 2 additional selling points
 - Brand logo: Top left
 
@@ -202,7 +209,7 @@ Background should match ${designStyle} style, creating ${brandTone} atmosphere.
       promptZh: `创建一个9:16竖版工艺/技术海报,可视化展示产品技术优势。
 
 **技术亮点**:
-基于卖点: ${sellingPoints[0].zh} / ${sellingPoints[0].en}
+基于卖点: ${normalizedSellingPoints[0].zh} / ${normalizedSellingPoints[0].en}
 使用信息图表或示意图展示这个技术特点。
 
 **视觉元素**:
@@ -211,7 +218,7 @@ Background should match ${designStyle} style, creating ${brandTone} atmosphere.
 - 保持产品作为主体
 
 **文字内容**:
-- 主标题: "${sellingPoints[0].zh}" / "${sellingPoints[0].en}"
+- 主标题: "${normalizedSellingPoints[0].zh}" / "${normalizedSellingPoints[0].en}"
 - 技术说明: 使用${packagingHighlights[0] || '产品亮点'}
 - 品牌LOGO: 左上角
 
@@ -222,7 +229,7 @@ Background should match ${designStyle} style, creating ${brandTone} atmosphere.
       promptEn: `Create a 9:16 vertical process/concept poster, visualizing product technical advantages.
 
 **Technical Highlights**:
-Based on selling point: ${sellingPoints[0].en} / ${sellingPoints[0].zh}
+Based on selling point: ${normalizedSellingPoints[0].en} / ${normalizedSellingPoints[0].zh}
 Use infographics or diagrams to show this technical feature.
 
 **Visual Elements**:
@@ -231,7 +238,7 @@ Use infographics or diagrams to show this technical feature.
 - Keep product as the main subject
 
 **Text Content**:
-- Main title: "${sellingPoints[0].en}" / "${sellingPoints[0].zh}"
+- Main title: "${normalizedSellingPoints[0].en}" / "${normalizedSellingPoints[0].zh}"
 - Technical description: Use ${packagingHighlights[0] || 'product highlight'}
 - Brand logo: Top left
 
@@ -251,7 +258,7 @@ Use infographics or diagrams to show this technical feature.
       promptZh: `创建一个9:16竖版细节特写海报。
 
 **特写内容**:
-展示产品的精致细节,突出${sellingPoints[1] || '产品品质'}。
+展示产品的精致细节,突出${normalizedSellingPoints[1].zh || '产品品质'}。
 使用微距视角,强调材质和工艺。
 
 **视觉风格**:
@@ -269,7 +276,7 @@ Use infographics or diagrams to show this technical feature.
       promptEn: `Create a 9:16 vertical detail shot poster.
 
 **Detail Content**:
-Show exquisite product details, highlighting ${sellingPoints[1]?.en || 'product quality'}.
+Show exquisite product details, highlighting ${normalizedSellingPoints[1].en || 'product quality'}.
 Use macro perspective, emphasize texture and craftsmanship.
 
 **Visual Style**:
@@ -294,7 +301,7 @@ Use macro perspective, emphasize texture and craftsmanship.
       promptZh: `创建一个9:16竖版材质特写海报。
 
 **特写内容**:
-展示产品材质,突出${sellingPoints[2] || '优质材料'}。
+展示产品材质,突出${normalizedSellingPoints[2].zh || '优质材料'}。
 强调材质的纹理和触感。
 
 **视觉风格**:
@@ -312,7 +319,7 @@ Use macro perspective, emphasize texture and craftsmanship.
       promptEn: `Create a 9:16 vertical material close-up poster.
 
 **Detail Content**:
-Show product material, highlighting ${sellingPoints[2]?.en || 'premium materials'}.
+Show product material, highlighting ${normalizedSellingPoints[2].en || 'premium materials'}.
 Emphasize material texture and tactile quality.
 
 **Visual Style**:
@@ -337,7 +344,7 @@ Emphasize material texture and tactile quality.
       promptZh: `创建一个9:16竖版功能细节海报。
 
 **特写内容**:
-展示产品功能特性,突出${sellingPoints[3] || '功能优势'}。
+展示产品功能特性,突出${normalizedSellingPoints[3].zh || '功能优势'}。
 展示产品使用或操作的部分。
 
 **视觉风格**:
@@ -355,7 +362,7 @@ Emphasize material texture and tactile quality.
       promptEn: `Create a 9:16 vertical functional detail poster.
 
 **Detail Content**:
-Show product functional features, highlighting ${sellingPoints[3]?.en || 'functional advantages'}.
+Show product functional features, highlighting ${normalizedSellingPoints[3].en || 'functional advantages'}.
 Display parts showing product use or operation.
 
 **Visual Style**:
@@ -380,7 +387,7 @@ Display parts showing product use or operation.
       promptZh: `创建一个9:16竖版用户体验海报。
 
 **特写内容**:
-展示用户体验,突出${sellingPoints[4] || '用户满意度'}。
+展示用户体验,突出${normalizedSellingPoints[4].zh || '用户满意度'}。
 可以展示产品与用户的互动场景。
 
 **视觉风格**:
@@ -398,7 +405,7 @@ Display parts showing product use or operation.
       promptEn: `Create a 9:16 vertical user experience poster.
 
 **Detail Content**:
-Show user experience, highlighting ${sellingPoints[4]?.en || 'user satisfaction'}.
+Show user experience, highlighting ${normalizedSellingPoints[4].en || 'user satisfaction'}.
 Can show scenarios of product-user interaction.
 
 **Visual Style**:
@@ -481,7 +488,7 @@ Can include brand elements or abstract graphics
 
 **产品参数**:
 ${Object.entries(parameters)
-  .filter(([_, value]) => value)
+  .filter(([, value]) => value)
   .map(([key, value]) => {
     const keyMap: Record<string, string> = {
       netContent: '净含量',
@@ -511,7 +518,7 @@ ${Object.entries(parameters)
 
 **Product Specifications**:
 ${Object.entries(parameters)
-  .filter(([_, value]) => value)
+  .filter(([, value]) => value)
   .map(([key, value]) => {
     const keyMap: Record<string, string> = {
       netContent: 'Net Content',

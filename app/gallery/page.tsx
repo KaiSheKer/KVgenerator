@@ -1,16 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Download, Eye } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 export default function GalleryPage() {
   const router = useRouter();
   const { generatedPosters, generatedPrompts } = useAppContext();
-  const [selectedPoster, setSelectedPoster] = useState<number | null>(null);
+  const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null);
+  const promptById = new Map(generatedPrompts?.posters.map((poster) => [poster.id, poster]));
+  const selectedPoster = selectedPosterId
+    ? generatedPosters?.find((poster) => poster.id === selectedPosterId)
+    : null;
 
   useEffect(() => {
     if (!generatedPosters || generatedPosters.length === 0) {
@@ -62,24 +67,26 @@ export default function GalleryPage() {
 
       {/* 海报画廊 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {generatedPosters.map((poster, index) => {
+        {generatedPosters.map((poster) => {
           if (poster.status !== 'completed') return null;
 
-          const prompt = generatedPrompts?.posters[index];
-          const posterNumber = parseInt(poster.id);
+          const prompt = promptById.get(poster.id);
 
           return (
             <Card
               key={poster.id}
               className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedPoster(index)}
+              onClick={() => setSelectedPosterId(poster.id)}
             >
               <div className="aspect-[9/16] relative bg-muted">
                 {poster.url ? (
-                  <img
+                  <Image
                     src={poster.url}
                     alt={prompt?.title || `Poster ${poster.id}`}
-                    className="w-full h-full object-cover"
+                    fill
+                    unoptimized
+                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    className="object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -104,35 +111,37 @@ export default function GalleryPage() {
       </div>
 
       {/* 大图预览 */}
-      {selectedPoster !== null && (
+      {selectedPosterId !== null && (
         <div
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setSelectedPoster(null)}
+          onClick={() => setSelectedPosterId(null)}
         >
           <div className="max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
             <Card className="overflow-hidden">
-              {generatedPosters[selectedPoster]?.url && (
-                <img
-                  src={generatedPosters[selectedPoster].url}
-                  alt={generatedPrompts?.posters[selectedPoster]?.title}
-                  className="w-full"
+              {selectedPoster?.url && (
+                <Image
+                  src={selectedPoster.url}
+                  alt={promptById.get(selectedPoster.id)?.title || `Poster ${selectedPoster.id}`}
+                  width={720}
+                  height={1280}
+                  unoptimized
+                  className="w-full h-auto"
                 />
               )}
               <div className="p-4 space-y-4">
                 <div>
                   <h3 className="text-lg font-bold">
-                    海报 {generatedPrompts?.posters[selectedPoster]?.id} - {generatedPrompts?.posters[selectedPoster]?.title}
+                    海报 {promptById.get(selectedPosterId || '')?.id} - {promptById.get(selectedPosterId || '')?.title}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {generatedPrompts?.posters[selectedPoster]?.titleEn}
+                    {promptById.get(selectedPosterId || '')?.titleEn}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Button
                     onClick={() => {
-                      const poster = generatedPosters[selectedPoster];
-                      if (poster?.url) {
-                        handleDownload(poster.url, poster.id);
+                      if (selectedPoster?.url) {
+                        handleDownload(selectedPoster.url, selectedPoster.id);
                       }
                     }}
                   >
@@ -141,7 +150,7 @@ export default function GalleryPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setSelectedPoster(null)}
+                    onClick={() => setSelectedPosterId(null)}
                   >
                     关闭
                   </Button>

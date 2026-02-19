@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
+import Image from 'next/image';
 import { Upload } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -12,35 +13,46 @@ interface ImageUploadProps {
 
 export function ImageUpload({ onUpload, image }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const MAX_SIZE = 10 * 1024 * 1024;
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const validateFile = (file: File): boolean => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('仅支持 JPG、PNG、WEBP 格式');
+      return false;
+    }
+
+    if (file.size > MAX_SIZE) {
+      toast.error('图片大小不能超过 10MB');
+      return false;
+    }
+
+    return true;
+  };
+
+  const readAndUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const preview = event.target?.result as string;
+      onUpload(file, preview);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
 
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      if (file.size <= 10 * 1024 * 1024) { // 10MB
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const preview = e.target?.result as string;
-          onUpload(file, preview);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        toast.error('图片大小不能超过 10MB');
-      }
+    if (file && validateFile(file)) {
+      readAndUpload(file);
     }
-  }, [onUpload]);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const preview = e.target?.result as string;
-        onUpload(file, preview);
-      };
-      reader.readAsDataURL(file);
+    if (file && validateFile(file)) {
+      readAndUpload(file);
     }
   };
 
@@ -59,9 +71,12 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
     >
       {image ? (
         <div className="space-y-4">
-          <img
+          <Image
             src={image}
             alt="上传的图片"
+            width={800}
+            height={800}
+            unoptimized
             className="w-full max-w-md mx-auto rounded-lg"
           />
           <p className="text-center text-sm text-muted-foreground">点击重新上传</p>
@@ -81,7 +96,7 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
       <input
         id="file-input"
         type="file"
-        accept="image/*"
+        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={handleFileChange}
       />

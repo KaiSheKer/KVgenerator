@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { StyleCard } from '@/components/StyleCard';
 
 const VISUAL_STYLES = [

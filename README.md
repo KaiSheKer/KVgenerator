@@ -2,6 +2,12 @@
 
 AI 驱动的电商 KV 海报生成工具,5 分钟生成 10 张专业海报。
 
+## 项目定位
+
+- 这是用于简历作品集展示的 Demo 项目,不是生产环境架构
+- API Key 仅建议使用低额度测试 Key,并配置严格配额与过期策略
+- 当前默认启用 mock 图像生成,方便本地演示
+
 ## 功能特性
 
 - ✅ **智能分析**: 上传产品图片,AI 自动提取品牌、产品、卖点等信息
@@ -16,7 +22,7 @@ AI 驱动的电商 KV 海报生成工具,5 分钟生成 10 张专业海报。
 - **语言**: TypeScript
 - **样式**: Tailwind CSS v4
 - **UI**: shadcn/ui
-- **AI**: Gemini API (分析) + Nano Banana Pro API (生成)
+- **AI**: Gemini API (分析 + 生成)
 - **状态**: React Context API
 - **通知**: Sonner
 
@@ -40,8 +46,12 @@ cp .env.example .env.local
 
 ```env
 NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
-NEXT_PUBLIC_NANO_BANANA_API_KEY=your_nano_banana_api_key_here
+NEXT_PUBLIC_GEMINI_ANALYSIS_MODEL=gemini-2.5-flash
+NEXT_PUBLIC_GEMINI_IMAGE_MODEL=gemini-3-pro-image-preview
+NEXT_PUBLIC_USE_MOCK=true
 ```
+
+`NEXT_PUBLIC_USE_MOCK=true` 时使用本地 mock 生成图片,`false` 时调用真实图像生成 API。
 
 ### 启动开发服务器
 
@@ -122,6 +132,8 @@ npm run dev        # 启动开发服务器
 npm run build      # 构建生产版本
 npm run start      # 运行生产版本
 npm run lint       # 代码检查
+npm run typecheck  # TypeScript 类型检查
+npm run test       # 测试 (lint + typecheck)
 ```
 
 ## 注意事项
