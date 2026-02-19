@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KV Generator - 电商海报生成工具
 
-## Getting Started
+AI 驱动的电商 KV 海报生成工具,5 分钟生成 10 张专业海报。
 
-First, run the development server:
+## 功能特性
+
+- ✅ **智能分析**: 上传产品图片,AI 自动提取品牌、产品、卖点等信息
+- ✅ **风格定制**: 8 种视觉风格 × 6 种文字排版 × 3 种中英文格式
+- ✅ **批量生成**: 一键生成 10 张 9:16 竖版海报
+- ✅ **完整流程**: 主KV、生活场景、工艺技术、细节特写、品牌故事等
+- ✅ **实时预览**: 查看和编辑提示词,支持下载全部海报
+
+## 技术栈
+
+- **框架**: Next.js 15 (App Router)
+- **语言**: TypeScript
+- **样式**: Tailwind CSS v4
+- **UI**: shadcn/ui
+- **AI**: Gemini API (分析) + Nano Banana Pro API (生成)
+- **状态**: React Context API
+- **通知**: Sonner
+
+## 快速开始
+
+### 安装依赖
+
+```bash
+npm install
+```
+
+### 配置环境变量
+
+复制 `.env.example` 为 `.env.local`:
+
+```bash
+cp .env.example .env.local
+```
+
+编辑 `.env.local`,配置 API 密钥:
+
+```env
+NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
+NEXT_PUBLIC_NANO_BANANA_API_KEY=your_nano_banana_api_key_here
+```
+
+### 启动开发服务器
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问 http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 构建生产版本
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## 使用流程
 
-To learn more about Next.js, take a look at the following resources:
+1. **上传产品图片**: 拖拽或点击上传产品图片
+2. **AI 分析**: AI 自动提取产品信息
+3. **编辑信息**: 确认并编辑 AI 提取的信息
+4. **选择风格**: 选择视觉风格和文字排版
+5. **生成提示词**: 查看 10 张海报的完整提示词
+6. **生成海报**: AI 生成所有海报
+7. **下载成果**: 查看并下载海报
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 海报类型
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **主KV视觉** - 展示产品全貌和品牌形象
+2. **生活场景** - 展示产品实际使用场景
+3. **工艺技术** - 基于卖点的可视化展示
+4. **细节特写 01-04** - 产品细节、材质、功能、用户体验
+5. **品牌故事** - 展示品牌调性和理念
+6. **产品参数** - 数据可视化呈现
+7. **使用指南** - 步骤化说明
 
-## Deploy on Vercel
+## 视觉风格 (8种)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- 杂志编辑 (Magazine Editorial)
+- 水彩艺术 (Watercolor Art)
+- 科技未来 (Tech Future)
+- 复古胶片 (Vintage Film)
+- 极简北欧 (Minimal Nordic)
+- 霓虹赛博 (Neon Cyberpunk)
+- 自然有机 (Natural Organic)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 文字排版 (6种)
+
+- 玻璃拟态 (Glassmorphism)
+- 3D 浮雕 (3D Embossed)
+- 手写体 (Handwritten)
+- 粗衬线 (Bold Serif)
+- 无衬线粗体 (Bold Sans-serif)
+- 极细线条 (Thin Sans-serif)
+
+## 项目结构
+
+```
+kv-generator/
+├── app/                    # Next.js 页面
+│   ├── analyze/           # AI 分析页面
+│   ├── edit/              # 信息编辑页面
+│   ├── style/             # 风格选择页面
+│   ├── prompts/           # 提示词预览页面
+│   ├── generate/          # 海报生成页面
+│   └── gallery/           # 成果展示页面
+├── components/            # React 组件
+├── contexts/              # 全局状态管理
+├── hooks/                 # 自定义 Hooks
+├── lib/                   # 工具函数和 API
+└── public/                # 静态资源
+```
+
+## 开发命令
+
+```bash
+npm run dev        # 启动开发服务器
+npm run build      # 构建生产版本
+npm run start      # 运行生产版本
+npm run lint       # 代码检查
+```
+
+## 注意事项
+
+- 确保 API 密钥正确配置
+- 图片格式支持: JPG、PNG、WEBP
+- 图片大小限制: 最大 10MB
+- 会话自动保存 24 小时
+
+## 许可证
+
+MIT License
+
+---
+
+**开发者**: Claude Code
+**版本**: v1.0.0
+**日期**: 2026-02-19
