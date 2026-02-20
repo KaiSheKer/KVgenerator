@@ -21,7 +21,7 @@ interface PosterProgress {
 export default function GeneratePage() {
   const router = useRouter();
   const { generatedPrompts, setGeneratedPosters } = useAppContext();
-  const { isLoading, progress, message, startLoading, updateProgress, stopLoading } = useLoading();
+  const { isLoading, progress, startLoading, updateProgress, stopLoading } = useLoading();
   const [postersProgress, setPostersProgress] = useState<PosterProgress[]>([]);
   const [completed, setCompleted] = useState(false);
   const useMock = process.env.NEXT_PUBLIC_USE_MOCK !== 'false';

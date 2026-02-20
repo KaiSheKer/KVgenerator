@@ -7,6 +7,9 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+const MAX_SIZE = 10 * 1024 * 1024;
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 interface ImageUploadProps {
   onUpload: (file: File, preview: string) => void;
   image?: string;
@@ -14,10 +17,8 @@ interface ImageUploadProps {
 
 export function ImageUpload({ onUpload, image }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const MAX_SIZE = 10 * 1024 * 1024;
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-  const validateFile = (file: File): boolean => {
+  const validateFile = useCallback((file: File): boolean => {
     if (!ALLOWED_TYPES.includes(file.type)) {
       toast.error('仅支持 JPG、PNG、WEBP 格式');
       return false;
@@ -29,16 +30,7 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
     }
 
     return true;
-  };
-
-  const readAndUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const preview = event.target?.result as string;
-      onUpload(file, preview);
-    };
-    reader.readAsDataURL(file);
-  };
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -46,14 +38,24 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
 
     const file = e.dataTransfer.files[0];
     if (file && validateFile(file)) {
-      readAndUpload(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const preview = event.target?.result as string;
+        onUpload(file, preview);
+      };
+      reader.readAsDataURL(file);
     }
-  }, [validateFile]);
+  }, [validateFile, onUpload]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && validateFile(file)) {
-      readAndUpload(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const preview = event.target?.result as string;
+        onUpload(file, preview);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
