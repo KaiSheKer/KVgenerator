@@ -6,6 +6,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { generatePrompts } from '@/lib/utils/promptGenerator';
+import { cn } from '@/lib/utils';
 
 export default function PromptsPage() {
   const router = useRouter();
@@ -45,83 +46,91 @@ export default function PromptsPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">生成的提示词</h2>
-        <p className="text-muted-foreground">
-          10 张海报的完整提示词已生成,查看并编辑后开始生成海报
-        </p>
+    <div className="max-w-7xl mx-auto p-8 animate-fade-in">
+      {/* 顶部导航 */}
+      <div className="flex justify-between items-center mb-6">
+        <Button variant="outline" onClick={() => router.back()}>
+          ← 上一步
+        </Button>
+        <Button size="lg" onClick={handleGenerate} className="bg-gradient-to-r from-primary to-accent">
+          开始生成海报 →
+        </Button>
       </div>
 
-      {/* 海报选择器 */}
-      <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
+      {/* 海报选择标签 */}
+      <div className="flex gap-2 overflow-x-auto pb-4">
         {prompts.posters.map((poster, index) => (
           <button
             key={poster.id}
-            className={`p-3 rounded-lg border-2 transition-all ${
+            className={cn(
+              "px-6 py-3 rounded-xl whitespace-nowrap transition-all duration-200",
               selectedIndex === index
-                ? 'border-primary bg-primary/10'
-                : 'border-border hover:border-primary/50'
-            }`}
+                ? "bg-gradient-to-r from-primary to-accent text-white shadow-lg"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+            )}
             onClick={() => setSelectedIndex(index)}
           >
-            <div className="text-xs text-center">
-              <div className="font-semibold">{poster.id}</div>
-              <div className="text-muted-foreground mt-1">{poster.title}</div>
-            </div>
+            {poster.id}
           </button>
         ))}
       </div>
 
-      {/* 提示词详情 */}
-      <Card className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      {/* 内容区域 */}
+      <Card className="p-8 animate-slide-up">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-2xl font-bold">
+            <h3 className="text-xl font-bold mb-2">
               海报 {currentPrompt.id} - {currentPrompt.title}
             </h3>
             <p className="text-sm text-muted-foreground">{currentPrompt.titleEn}</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleCopy}>
-              {copied ? '✓ 已复制' : '复制中文提示词'}
-            </Button>
-            <Button onClick={handleGenerate}>
-              开始生成海报 →
-            </Button>
-          </div>
+          <Button variant="outline" onClick={handleCopy}>
+            {copied ? '✓ 已复制' : '复制中文提示词'}
+          </Button>
         </div>
 
         <div className="space-y-4">
           <div>
             <h4 className="font-semibold mb-2">中文提示词</h4>
-            <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm max-h-96 overflow-y-auto">
+            <div className="bg-muted p-4 rounded-xl whitespace-pre-wrap text-sm max-h-64 overflow-y-auto">
               {currentPrompt.promptZh}
             </div>
           </div>
 
           <div>
             <h4 className="font-semibold mb-2">英文 Prompt</h4>
-            <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm max-h-96 overflow-y-auto">
+            <div className="bg-muted p-4 rounded-xl whitespace-pre-wrap text-sm max-h-64 overflow-y-auto">
               {currentPrompt.promptEn}
             </div>
           </div>
 
           <div>
             <h4 className="font-semibold mb-2">负面词</h4>
-            <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm max-h-32 overflow-y-auto">
+            <div className="bg-muted p-4 rounded-xl whitespace-pre-wrap text-sm max-h-32 overflow-y-auto">
               {currentPrompt.negative}
             </div>
           </div>
         </div>
       </Card>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={() => router.back()}>
-          ← 上一步
+      {/* 底部导航 */}
+      <div className="flex justify-center items-center gap-4 mt-6">
+        <Button
+          variant="outline"
+          onClick={() => setSelectedIndex(Math.max(0, selectedIndex - 1))}
+          disabled={selectedIndex === 0}
+        >
+          ← 上一张
         </Button>
-        <Button size="lg" onClick={handleGenerate}>
-          开始生成海报 →
+        <span className="text-sm text-muted-foreground">
+          {selectedIndex + 1} / {prompts.posters.length}
+        </span>
+        <Button
+          variant="outline"
+          onClick={() => setSelectedIndex(Math.min(prompts.posters.length - 1, selectedIndex + 1))}
+          disabled={selectedIndex === prompts.posters.length - 1}
+        >
+          下一张 →
         </Button>
       </div>
     </div>
