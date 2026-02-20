@@ -9,20 +9,15 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ progress, message }: LoadingScreenProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
       <div className="max-w-md w-full p-8 space-y-6">
-        <div className="space-y-2 text-center">
+        <div className="space-y-3 text-center">
           <p className="text-lg font-medium">{message}</p>
+          <Progress value={progress} className="h-2" />
           <p className="text-sm text-muted-foreground">
-            预计剩余时间: {Math.ceil((100 - progress) / 20)} 分钟
+            {Math.round(progress)}%
           </p>
         </div>
-
-        <Progress value={progress} className="h-2" />
-
-        <p className="text-center text-sm text-muted-foreground">
-          {Math.round(progress)}%
-        </p>
       </div>
     </div>
   );

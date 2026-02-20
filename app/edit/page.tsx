@@ -32,15 +32,15 @@ export default function EditPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 p-8 animate-fade-in">
+      {/* 简化标题 */}
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">编辑产品信息</h2>
-        <p className="text-muted-foreground">
-          请确认并编辑 AI 提取的产品信息
-        </p>
+        <h2 className="text-2xl font-semibold">编辑产品信息</h2>
+        <p className="text-sm text-muted-foreground">请确认并编辑 AI 提取的产品信息</p>
       </div>
 
-      <Card className="p-6 space-y-6">
+      {/* 内容卡片 */}
+      <Card className="p-8 rounded-3xl shadow-lg space-y-6">
         {/* 品牌名称 */}
         <div className="space-y-2">
           <Label>品牌名称 (中文)</Label>
@@ -119,7 +119,7 @@ export default function EditPage() {
             {editedProductInfo.colorScheme.primary.map((color, index) => (
               <div key={index} className="flex items-center gap-2">
                 <div
-                  className="w-12 h-12 rounded border"
+                  className="w-12 h-12 rounded-xl border"
                   style={{ backgroundColor: color }}
                 />
                 <Input
@@ -139,11 +139,12 @@ export default function EditPage() {
         </div>
       </Card>
 
+      {/* 导航按钮 */}
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => router.back()}>
           ← 上一步
         </Button>
-        <Button onClick={handleNext}>
+        <Button onClick={handleNext} className="bg-gradient-to-r from-primary to-accent">
           下一步: 选择风格 →
         </Button>
       </div>
