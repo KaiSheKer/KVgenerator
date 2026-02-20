@@ -1,48 +1,115 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: oklch(100% 0 0);
+  /* 基础颜色 */
+  --color-background: oklch(98% 0.01 285);
   --color-foreground: oklch(9% 0.02 285);
+  --color-surface: oklch(100% 0 0);
   --color-card: oklch(100% 0 0);
   --color-card-foreground: oklch(9% 0.02 285);
   --color-popover: oklch(100% 0 0);
   --color-popover-foreground: oklch(9% 0.02 285);
-  --color-primary: oklch(11% 0.04 285);
+
+  /* 暖色调主题色 */
+  --color-primary: oklch(65% 0.15 285);
   --color-primary-foreground: oklch(98% 0 0);
+  --color-accent: oklch(85% 0.15 85);
+
+  /* 次要颜色 */
   --color-secondary: oklch(96% 0.01 285);
   --color-secondary-foreground: oklch(11% 0.04 285);
   --color-muted: oklch(96% 0.01 285);
   --color-muted-foreground: oklch(47% 0.01 285);
-  --color-accent: oklch(96% 0.01 285);
-  --color-accent-foreground: oklch(11% 0.04 285);
+
+  /* 功能色 */
   --color-destructive: oklch(60% 0.2 285);
   --color-destructive-foreground: oklch(98% 0 0);
   --color-border: oklch(91% 0.01 285);
   --color-input: oklch(91% 0.01 285);
   --color-ring: oklch(9% 0.02 285);
+
+  /* 圆角 */
   --radius: 0.5rem;
+  --radius-3xl: 24px;
+
+  /* 阴影 */
+  --shadow-card: 0 4px 16px rgba(255, 107, 107, 0.12);
+  --shadow-float: 0 12px 48px rgba(255, 107, 107, 0.20);
+
+  /* 动画过渡 */
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   @theme {
+    /* 基础颜色 - 暗色模式 */
     --color-background: oklch(9% 0.02 285);
     --color-foreground: oklch(98% 0 0);
+    --color-surface: oklch(12% 0.02 285);
     --color-card: oklch(9% 0.02 285);
     --color-card-foreground: oklch(98% 0 0);
     --color-popover: oklch(9% 0.02 285);
     --color-popover-foreground: oklch(98% 0 0);
-    --color-primary: oklch(98% 0 0);
+
+    /* 暖色调主题色 - 暗色模式 */
+    --color-primary: oklch(70% 0.15 285);
     --color-primary-foreground: oklch(11% 0.04 285);
+    --color-accent: oklch(80% 0.15 85);
+
+    /* 次要颜色 - 暗色模式 */
     --color-secondary: oklch(17% 0.03 285);
     --color-secondary-foreground: oklch(98% 0 0);
     --color-muted: oklch(17% 0.03 285);
     --color-muted-foreground: oklch(65% 0.01 285);
-    --color-accent: oklch(17% 0.03 285);
-    --color-accent-foreground: oklch(98% 0 0);
+
+    /* 功能色 - 暗色模式 */
     --color-destructive: oklch(30% 0.1 285);
     --color-destructive-foreground: oklch(98% 0 0);
     --color-border: oklch(17% 0.03 285);
     --color-input: oklch(17% 0.03 285);
     --color-ring: oklch(84% 0.01 285);
+
+    /* 阴影 - 暗色模式 */
+    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.3);
+    --shadow-float: 0 12px 48px rgba(0, 0, 0, 0.4);
   }
+}
+
+/* 自定义动画 */
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slide-up {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* 动画工具类 */
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
