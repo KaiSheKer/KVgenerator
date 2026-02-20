@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import Image from 'next/image';
 import { Upload } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface ImageUploadProps {
@@ -39,7 +40,7 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
     reader.readAsDataURL(file);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
 
@@ -47,7 +48,7 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
     if (file && validateFile(file)) {
       readAndUpload(file);
     }
-  };
+  }, [validateFile]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,9 +59,14 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
 
   return (
     <Card
-      className={`relative border-2 border-dashed transition-all cursor-pointer p-12
-        ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
-      `}
+      className={cn(
+        "relative w-full aspect-video bg-white rounded-3xl shadow-card",
+        "border-4 border-dashed border-primary/30",
+        "flex items-center justify-center cursor-pointer",
+        "transition-all duration-300",
+        "hover:shadow-float hover:-translate-y-1 hover:border-primary",
+        isDragging && "border-primary bg-primary/5"
+      )}
       onDrop={handleDrop}
       onDragOver={(e) => {
         e.preventDefault();
@@ -77,17 +83,19 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
             width={800}
             height={800}
             unoptimized
-            className="w-full max-w-md mx-auto rounded-lg"
+            className="w-full max-w-md mx-auto rounded-2xl"
           />
           <p className="text-center text-sm text-muted-foreground">点击重新上传</p>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-4">
-          <Upload className="w-12 h-12 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-lg font-medium">拖拽图片到此处</p>
-            <p className="text-sm text-muted-foreground">或点击上传</p>
-            <p className="text-xs text-muted-foreground mt-2">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <Upload className="w-10 h-10 text-white" />
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-2xl font-semibold text-foreground">拖拽产品图片到此处</p>
+            <p className="text-muted-foreground">或点击上传</p>
+            <p className="text-sm text-muted-foreground">
               支持 JPG、PNG、WEBP,最大 10MB
             </p>
           </div>
