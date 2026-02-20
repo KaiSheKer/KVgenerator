@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react';
 
 // 类型定义
 export interface UploadedImage {
@@ -97,48 +97,93 @@ interface AppActions {
   reset: () => void;
 }
 
+const initialState: AppState = {
+  currentStep: 0,
+  uploadedImage: null,
+  productInfo: null,
+  editedProductInfo: null,
+  selectedStyle: null,
+  generatedPrompts: null,
+  generatedPosters: null,
+  isLoading: false,
+  error: null,
+};
+
 // 创建 Context
 const AppContext = createContext<AppState & AppActions | undefined>(undefined);
 
 // Provider 组件
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>({
-    currentStep: 0,
-    uploadedImage: null,
-    productInfo: null,
-    editedProductInfo: null,
-    selectedStyle: null,
-    generatedPrompts: null,
-    generatedPosters: null,
-    isLoading: false,
-    error: null,
+    ...initialState,
   });
 
-  const actions: AppActions = {
-    setCurrentStep: (step) => setState((prev) => ({ ...prev, currentStep: step })),
-    setUploadedImage: (image) => setState((prev) => ({ ...prev, uploadedImage: image })),
-    setProductInfo: (info) => setState((prev) => ({ ...prev, productInfo: info, editedProductInfo: info })),
-    updateProductInfo: (info) => setState((prev) => ({
+  const setCurrentStep = useCallback((step: number) => {
+    setState((prev) => ({ ...prev, currentStep: step }));
+  }, []);
+
+  const setUploadedImage = useCallback((image: UploadedImage) => {
+    setState((prev) => ({ ...prev, uploadedImage: image }));
+  }, []);
+
+  const setProductInfo = useCallback((info: AnalysisResponse) => {
+    setState((prev) => ({ ...prev, productInfo: info, editedProductInfo: info }));
+  }, []);
+
+  const updateProductInfo = useCallback((info: Partial<AnalysisResponse>) => {
+    setState((prev) => ({
       ...prev,
       editedProductInfo: prev.editedProductInfo ? { ...prev.editedProductInfo, ...info } : null
-    })),
-    setSelectedStyle: (style) => setState((prev) => ({ ...prev, selectedStyle: style })),
-    setGeneratedPrompts: (prompts) => setState((prev) => ({ ...prev, generatedPrompts: prompts })),
-    setGeneratedPosters: (posters) => setState((prev) => ({ ...prev, generatedPosters: posters })),
-    setLoading: (loading) => setState((prev) => ({ ...prev, isLoading: loading })),
-    setError: (error) => setState((prev) => ({ ...prev, error })),
-    reset: () => setState({
-      currentStep: 0,
-      uploadedImage: null,
-      productInfo: null,
-      editedProductInfo: null,
-      selectedStyle: null,
-      generatedPrompts: null,
-      generatedPosters: null,
-      isLoading: false,
-      error: null,
-    }),
-  };
+    }));
+  }, []);
+
+  const setSelectedStyle = useCallback((style: StyleConfig) => {
+    setState((prev) => ({ ...prev, selectedStyle: style }));
+  }, []);
+
+  const setGeneratedPrompts = useCallback((prompts: PromptsSystem) => {
+    setState((prev) => ({ ...prev, generatedPrompts: prompts }));
+  }, []);
+
+  const setGeneratedPosters = useCallback((posters: GeneratedPoster[]) => {
+    setState((prev) => ({ ...prev, generatedPosters: posters }));
+  }, []);
+
+  const setLoading = useCallback((loading: boolean) => {
+    setState((prev) => ({ ...prev, isLoading: loading }));
+  }, []);
+
+  const setError = useCallback((error: string | null) => {
+    setState((prev) => ({ ...prev, error }));
+  }, []);
+
+  const reset = useCallback(() => {
+    setState(initialState);
+  }, []);
+
+  const actions: AppActions = useMemo(() => ({
+    setCurrentStep,
+    setUploadedImage,
+    setProductInfo,
+    updateProductInfo,
+    setSelectedStyle,
+    setGeneratedPrompts,
+    setGeneratedPosters,
+    setLoading,
+    setError,
+    reset,
+  }), [
+    setCurrentStep,
+    setUploadedImage,
+    setProductInfo,
+    updateProductInfo,
+    setSelectedStyle,
+    setGeneratedPrompts,
+    setGeneratedPosters,
+    setLoading,
+    setError,
+    reset,
+  ]);
 
   return (
     <AppContext.Provider value={{ ...state, ...actions }}>

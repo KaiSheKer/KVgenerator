@@ -48,6 +48,7 @@ cp .env.example .env.local
 NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
 NEXT_PUBLIC_GEMINI_ANALYSIS_MODEL=gemini-2.5-flash
 NEXT_PUBLIC_GEMINI_IMAGE_MODEL=gemini-3-pro-image-preview
+NEXT_PUBLIC_GEMINI_IMAGE_FALLBACK_MODEL=
 NEXT_PUBLIC_USE_MOCK=true
 ```
 

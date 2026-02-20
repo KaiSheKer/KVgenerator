@@ -1,5 +1,9 @@
 import { AppError, ErrorType } from './errorTypes';
 
+type RetryableError = Error & {
+  retryAfterMs?: number;
+};
+
 export function handleError(error: unknown) {
   console.error('Error occurred:', error);
 
@@ -43,8 +47,16 @@ export async function withRetry<T>(
       return await fn();
     } catch (error) {
       if (i === maxRetries - 1) throw error;
-      console.log(`重试第 ${i + 1} 次...`);
-      await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+      const retryAfterMs =
+        error instanceof Error && 'retryAfterMs' in error
+          ? (error as RetryableError).retryAfterMs
+          : undefined;
+      const waitMs =
+        typeof retryAfterMs === 'number' && Number.isFinite(retryAfterMs) && retryAfterMs > 0
+          ? retryAfterMs
+          : delay * (i + 1);
+      console.log(`重试第 ${i + 1} 次,等待 ${Math.ceil(waitMs / 1000)} 秒...`);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
     }
   }
   throw new Error('重试失败');

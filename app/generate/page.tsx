@@ -24,6 +24,7 @@ export default function GeneratePage() {
   const [postersProgress, setPostersProgress] = useState<PosterProgress[]>([]);
   const [completed, setCompleted] = useState(false);
   const useMock = process.env.NEXT_PUBLIC_USE_MOCK !== 'false';
+  const generationLimit = 1;
 
   const startGeneration = useCallback(async () => {
     if (!generatedPrompts) return;
@@ -31,10 +32,11 @@ export default function GeneratePage() {
     startLoading('正在生成海报...');
 
     const results: GeneratedPoster[] = [];
-    const total = generatedPrompts.posters.length;
+    const postersToGenerate = generatedPrompts.posters.slice(0, generationLimit);
+    const total = postersToGenerate.length;
 
     for (let i = 0; i < total; i++) {
-      const poster = generatedPrompts.posters[i];
+      const poster = postersToGenerate[i];
       const progressValue = Math.round(((i + 1) / total) * 100);
 
       setPostersProgress(prev =>
@@ -98,7 +100,7 @@ export default function GeneratePage() {
     }
 
     // 初始化进度
-    const initialProgress = generatedPrompts.posters.map(poster => ({
+    const initialProgress = generatedPrompts.posters.slice(0, generationLimit).map(poster => ({
       id: poster.id,
       status: 'pending' as const,
     }));
@@ -119,7 +121,7 @@ export default function GeneratePage() {
           <div className="text-center space-y-2">
             <p className="text-lg font-medium">{message}</p>
             <p className="text-sm text-muted-foreground">
-              预计剩余时间: {Math.ceil((100 - progress) / 10)} 秒
+              当前为调试模式,仅生成 1 张海报。预计剩余时间: {Math.ceil((100 - progress) / 10)} 秒
             </p>
           </div>
 

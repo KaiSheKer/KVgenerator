@@ -87,7 +87,9 @@ const ANALYSIS_PROMPT = `
 
 export async function analyzeProduct(imageBase64: string): Promise<AnalysisResponse> {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  const analysisModel = process.env.NEXT_PUBLIC_GEMINI_ANALYSIS_MODEL || 'gemini-2.5-flash';
+  const analysisModel = resolveAnalysisModel(
+    process.env.NEXT_PUBLIC_GEMINI_ANALYSIS_MODEL || 'gemini-2.5-flash'
+  );
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
@@ -147,4 +149,12 @@ export async function analyzeProduct(imageBase64: string): Promise<AnalysisRespo
     const result = JSON.parse(jsonMatch[0]);
     return result as AnalysisResponse;
   });
+}
+
+function resolveAnalysisModel(model: string): string {
+  const normalized = model.trim();
+  if (normalized === 'gemini-3-pro') {
+    return 'gemini-3-pro-preview';
+  }
+  return normalized;
 }

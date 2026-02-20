@@ -13,6 +13,8 @@ export async function generatePoster(
 ): Promise<string> {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   const imageModel = process.env.NEXT_PUBLIC_GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
+  const fallbackImageModel =
+    process.env.NEXT_PUBLIC_GEMINI_IMAGE_FALLBACK_MODEL?.trim() || '';
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
@@ -25,58 +27,51 @@ export async function generatePoster(
       ? `${request.prompt}\n\nAvoid: ${request.negative}`
       : request.prompt;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ['TEXT', 'IMAGE'],
-            imageConfig: {
-              aspectRatio,
-            },
-          },
-        }),
-      },
+    const primaryAttempt = await requestImageFromModel({
+      apiKey,
+      model: imageModel,
+      prompt,
+      aspectRatio,
+    });
+
+    if (primaryAttempt.dataUrl) {
+      return primaryAttempt.dataUrl;
+    }
+
+    if (
+      shouldFallbackToSecondaryModel(
+        primaryAttempt.status,
+        primaryAttempt.message,
+        imageModel,
+        fallbackImageModel
+      )
+    ) {
+      console.warn(
+        `Model ${imageModel} unavailable, fallback to ${fallbackImageModel}`
+      );
+      const fallbackAttempt = await requestImageFromModel({
+        apiKey,
+        model: fallbackImageModel,
+        prompt,
+        aspectRatio,
+      });
+      if (fallbackAttempt.dataUrl) {
+        return fallbackAttempt.dataUrl;
+      }
+
+      throw buildGeminiImageError(
+        fallbackAttempt.status,
+        fallbackAttempt.message,
+        fallbackAttempt.parsedError
+      );
+    }
+
+    throw buildGeminiImageError(
+      primaryAttempt.status,
+      primaryAttempt.message,
+      primaryAttempt.parsedError
     );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini image API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    const parts = data?.candidates?.[0]?.content?.parts;
-    const imagePart = Array.isArray(parts)
-      ? parts.find(
-          (part: { inlineData?: { data?: string; mimeType?: string }; inline_data?: { data?: string; mime_type?: string } }) =>
-            part?.inlineData?.data || part?.inline_data?.data
-        )
-      : null;
-
-    const inline = imagePart?.inlineData || imagePart?.inline_data;
-    const base64 = inline?.data;
-    const mimeType = inline?.mimeType || inline?.mime_type || 'image/png';
-
-    if (!base64) {
-      const modelText = Array.isArray(parts)
-        ? parts.find((part: { text?: string }) => typeof part.text === 'string')?.text
-        : '';
-      throw new Error(`No image generated${modelText ? `: ${modelText}` : ''}`);
-    }
-
-    return `data:${mimeType};base64,${base64}`;
-  });
+  }, 5, 2000);
 }
 
 // 模拟生成函数,用于开发测试
@@ -118,4 +113,183 @@ function getAspectRatio(width: number, height: number): string {
   }
 
   return best.value;
+}
+
+function tryParseJson(input: string): {
+  error?: {
+    message?: string;
+    details?: Array<{
+      '@type'?: string;
+      retryDelay?: string;
+    }>;
+  };
+} | null {
+  try {
+    return JSON.parse(input) as {
+      error?: {
+        message?: string;
+        details?: Array<{
+          '@type'?: string;
+          retryDelay?: string;
+        }>;
+      };
+    };
+  } catch {
+    return null;
+  }
+}
+
+function extractRetryAfterMs(
+  parsed: {
+    error?: {
+      message?: string;
+      details?: Array<{
+        '@type'?: string;
+        retryDelay?: string;
+      }>;
+    };
+  } | null,
+  fallbackMessage: string
+): number | undefined {
+  const retryInfo = parsed?.error?.details?.find(
+    (detail) => detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo'
+  );
+  const fromDetails = parseSecondsToMs(retryInfo?.retryDelay);
+  if (fromDetails) return fromDetails;
+
+  const match = fallbackMessage.match(/retry in\s+([0-9.]+)s/i);
+  if (!match) return undefined;
+  const seconds = Number(match[1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+  return Math.ceil(seconds * 1000);
+}
+
+function parseSecondsToMs(input?: string): number | undefined {
+  if (!input) return undefined;
+  const match = input.match(/([0-9.]+)s$/i);
+  if (!match) return undefined;
+  const seconds = Number(match[1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+  return Math.ceil(seconds * 1000);
+}
+
+type GeminiApiErrorPayload = {
+  error?: {
+    message?: string;
+    details?: Array<{
+      '@type'?: string;
+      retryDelay?: string;
+    }>;
+  };
+};
+
+async function requestImageFromModel(args: {
+  apiKey: string;
+  model: string;
+  prompt: string;
+  aspectRatio: string;
+}): Promise<{
+  status: number;
+  message: string;
+  parsedError: GeminiApiErrorPayload | null;
+  dataUrl?: string;
+}> {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${args.model}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': args.apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: args.prompt }],
+          },
+        ],
+        generationConfig: {
+          responseModalities: ['TEXT', 'IMAGE'],
+          imageConfig: {
+            aspectRatio: args.aspectRatio,
+          },
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    const parsed = tryParseJson(errorBody);
+    return {
+      status: response.status,
+      message: parsed?.error?.message || errorBody,
+      parsedError: parsed,
+    };
+  }
+
+  const data = await response.json();
+  const parts = data?.candidates?.[0]?.content?.parts;
+  const imagePart = Array.isArray(parts)
+    ? parts.find(
+        (part: { inlineData?: { data?: string; mimeType?: string }; inline_data?: { data?: string; mime_type?: string } }) =>
+          part?.inlineData?.data || part?.inline_data?.data
+      )
+    : null;
+  const inline = imagePart?.inlineData || imagePart?.inline_data;
+  const base64 = inline?.data;
+  const mimeType = inline?.mimeType || inline?.mime_type || 'image/png';
+
+  if (!base64) {
+    const modelText = Array.isArray(parts)
+      ? parts.find((part: { text?: string }) => typeof part.text === 'string')?.text
+      : '';
+    return {
+      status: 502,
+      message: `No image generated${modelText ? `: ${modelText}` : ''}`,
+      parsedError: null,
+    };
+  }
+
+  return {
+    status: 200,
+    message: 'OK',
+    parsedError: null,
+    dataUrl: `data:${mimeType};base64,${base64}`,
+  };
+}
+
+function shouldFallbackToSecondaryModel(
+  status: number,
+  message: string,
+  primaryModel: string,
+  fallbackModel: string
+): boolean {
+  if (!fallbackModel) return false;
+  if (primaryModel === fallbackModel) return false;
+  if (status !== 503) return false;
+  return /high demand|unavailable|try again later/i.test(message);
+}
+
+function buildGeminiImageError(
+  status: number,
+  message: string,
+  parsedError: GeminiApiErrorPayload | null
+): Error & { retryAfterMs?: number } {
+  const error = new Error(
+    `Gemini image API error (${status}): ${message}`
+  ) as Error & { retryAfterMs?: number };
+
+  if (status === 429) {
+    const retryAfterMs = extractRetryAfterMs(parsedError, message);
+    if (retryAfterMs) {
+      error.retryAfterMs = retryAfterMs;
+    }
+  } else if (status === 503) {
+    // Service overload often recovers quickly; avoid immediate tight retry.
+    error.retryAfterMs = 8000;
+  }
+
+  return error;
 }
