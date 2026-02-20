@@ -29,23 +29,24 @@ export default function HomePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">上传产品图片</h2>
-        <p className="text-muted-foreground">
-          AI 将自动分析产品信息并生成 10 张专业电商海报
-        </p>
+    <div className="min-h-screen flex items-center justify-center p-8 animate-fade-in">
+      <div className="w-full max-w-3xl space-y-6">
+        {/* 上传卡片 */}
+        <ImageUpload onUpload={handleUpload} image={imagePreview} />
+
+        {/* 开始分析按钮 */}
+        {imagePreview && (
+          <div className="flex justify-center animate-slide-up">
+            <Button
+              size="lg"
+              onClick={handleAnalyze}
+              className="px-12 py-6 text-lg rounded-2xl bg-gradient-to-r from-primary to-accent hover:shadow-float transition-all duration-300 hover:-translate-y-1"
+            >
+              开始分析 →
+            </Button>
+          </div>
+        )}
       </div>
-
-      <ImageUpload onUpload={handleUpload} image={imagePreview} />
-
-      {imagePreview && (
-        <div className="flex justify-center">
-          <Button size="lg" onClick={handleAnalyze}>
-            开始分析 →
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
