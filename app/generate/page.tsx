@@ -8,6 +8,7 @@ import { generatePoster, generatePosterMock } from '@/lib/api/nanobanana';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import type { GeneratedPoster } from '@/contexts/AppContext';
 
 interface PosterProgress {
@@ -115,46 +116,55 @@ export default function GeneratePage() {
   }
 
   if (isLoading) {
+    const completedCount = postersProgress.filter(p => p.status === 'completed').length;
+    const total = postersProgress.length;
+
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-        <div className="max-w-4xl w-full p-8 space-y-6">
-          <div className="text-center space-y-2">
-            <p className="text-lg font-medium">{message}</p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
+        <div className="max-w-4xl w-full p-8 space-y-8">
+          {/* 标题和进度 */}
+          <div className="text-center space-y-4">
+            <h2 className="text-2xl font-semibold">正在生成海报...</h2>
+            <Progress value={progress} className="h-2" />
             <p className="text-sm text-muted-foreground">
-              当前为调试模式,仅生成 1 张海报。预计剩余时间: {Math.ceil((100 - progress) / 10)} 秒
+              {Math.round(progress)}% ({completedCount}/{total})
             </p>
           </div>
 
-          <Progress value={progress} className="h-2" />
-
-          <p className="text-center text-sm text-muted-foreground">
-            {Math.round(progress)}%
-          </p>
-
-          {/* 海报生成进度 */}
-          <div className="grid grid-cols-5 md:grid-cols-10 gap-2 mt-8">
+          {/* 海报进度网格 */}
+          <div className="grid grid-cols-5 gap-4">
             {postersProgress.map((poster) => (
               <div
                 key={poster.id}
-                className={`p-3 rounded-lg border-2 text-center text-xs ${
-                  poster.status === 'completed'
-                    ? 'border-green-500 bg-green-500/10'
-                    : poster.status === 'generating'
-                    ? 'border-primary bg-primary/10'
-                    : poster.status === 'failed'
-                    ? 'border-red-500 bg-red-500/10'
-                    : 'border-border'
-                }`}
+                className={cn(
+                  "aspect-square rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-300",
+                  poster.status === 'completed' && "border-green-500 bg-green-500/10",
+                  poster.status === 'generating' && "border-primary animate-pulse-slow",
+                  poster.status === 'failed' && "border-red-500 bg-red-500/10",
+                  poster.status === 'pending' && "border-gray-300"
+                )}
               >
-                <div className="font-semibold">{poster.id}</div>
-                <div className="mt-1">
+                <div className="text-2xl mb-2">
                   {poster.status === 'completed' && '✓'}
                   {poster.status === 'generating' && '🔄'}
                   {poster.status === 'failed' && '✗'}
                   {poster.status === 'pending' && '⏳'}
                 </div>
+                <div className="text-xs font-semibold">{poster.id}</div>
               </div>
             ))}
+          </div>
+
+          {/* 当前状态 */}
+          <div className="text-center text-sm text-muted-foreground">
+            当前: 海报 {postersProgress.findIndex(p => p.status === 'generating') + 1}
+          </div>
+
+          {/* 取消按钮 */}
+          <div className="flex justify-center">
+            <Button variant="outline" onClick={() => router.push('/')}>
+              取消生成
+            </Button>
           </div>
         </div>
       </div>
@@ -166,9 +176,11 @@ export default function GeneratePage() {
     const failedCount = postersProgress.filter(p => p.status === 'failed').length;
 
     return (
-      <div className="max-w-4xl mx-auto space-y-8">
-        <Card className="p-8 text-center space-y-4">
-          <div className="text-6xl">🎉</div>
+      <div className="max-w-4xl mx-auto p-8 space-y-8 animate-fade-in">
+        <Card className="p-8 text-center space-y-4 rounded-3xl">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-primary to-accent rounded-full">
+            <span className="text-4xl">🎉</span>
+          </div>
           <h2 className="text-3xl font-bold">海报生成完成!</h2>
           <div className="flex justify-center gap-8 text-sm">
             <div>
@@ -184,7 +196,7 @@ export default function GeneratePage() {
             <Button variant="outline" onClick={() => router.push('/gallery')}>
               查看成果
             </Button>
-            <Button onClick={() => router.push('/')}>
+            <Button onClick={() => router.push('/')} className="bg-gradient-to-r from-primary to-accent">
               重新开始
             </Button>
           </div>
