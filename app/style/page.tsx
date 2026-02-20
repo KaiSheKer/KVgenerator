@@ -64,18 +64,16 @@ export default function StylePage() {
   const recommendedTypography = editedProductInfo.recommendedTypography || 'glassmorphism';
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8 p-8 animate-fade-in">
+      {/* 简化的标题 */}
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">选择视觉风格</h2>
-        <p className="text-muted-foreground">
-          根据您的产品特点,AI 推荐使用 {VISUAL_STYLES.find(s => s.id === recommendedStyle)?.name}
-        </p>
+        <h2 className="text-2xl font-semibold">选择视觉风格</h2>
+        <p className="text-sm text-muted-foreground">AI 推荐: {VISUAL_STYLES.find(s => s.id === recommendedStyle)?.name}</p>
       </div>
 
-      {/* 视觉风格 */}
-      <Card className="p-6 space-y-4">
-        <h3 className="text-xl font-semibold">视觉风格</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {/* 视觉风格网格 */}
+      <Card className="p-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {VISUAL_STYLES.map((style) => (
             <StyleCard
               key={style.id}
@@ -89,9 +87,9 @@ export default function StylePage() {
       </Card>
 
       {/* 文字排版 */}
-      <Card className="p-6 space-y-4">
-        <h3 className="text-xl font-semibold">文字排版</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">文字排版</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
           {TYPOGRAPHY_STYLES.map((style) => (
             <StyleCard
               key={style.id}
@@ -105,9 +103,9 @@ export default function StylePage() {
       </Card>
 
       {/* 中英文排版格式 */}
-      <Card className="p-6 space-y-4">
-        <h3 className="text-xl font-semibold">中英文排版格式</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">中英文排版格式</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {TEXT_LAYOUTS.map((layout) => (
             <StyleCard
               key={layout.id}
@@ -121,11 +119,12 @@ export default function StylePage() {
         </div>
       </Card>
 
+      {/* 导航按钮 */}
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => router.back()}>
           ← 上一步
         </Button>
-        <Button size="lg" onClick={handleNext}>
+        <Button size="lg" onClick={handleNext} className="bg-gradient-to-r from-primary to-accent">
           生成提示词 →
         </Button>
       </div>
