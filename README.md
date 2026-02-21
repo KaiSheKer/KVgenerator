@@ -45,10 +45,10 @@ cp .env.example .env.local
 编辑 `.env.local`,配置 API 密钥:
 
 ```env
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
-NEXT_PUBLIC_GEMINI_ANALYSIS_MODEL=gemini-2.5-flash
-NEXT_PUBLIC_GEMINI_IMAGE_MODEL=gemini-3-pro-image-preview
-NEXT_PUBLIC_GEMINI_IMAGE_FALLBACK_MODEL=
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_ANALYSIS_MODEL=gemini-2.5-flash
+GEMINI_IMAGE_MODEL=gemini-3-pro-image-preview
+GEMINI_IMAGE_FALLBACK_MODEL=
 NEXT_PUBLIC_USE_MOCK=true
 ```
 
@@ -153,3 +153,19 @@ MIT License
 **开发者**: Claude Code
 **版本**: v1.0.0
 **日期**: 2026-02-19
+
+## Vercel 环境变量配置
+
+在 Vercel 项目设置中添加以下变量:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_ANALYSIS_MODEL=gemini-2.5-flash
+GEMINI_IMAGE_MODEL=gemini-3-pro-image-preview
+GEMINI_IMAGE_FALLBACK_MODEL=
+ALLOW_FLASH_FALLBACK=false
+NEXT_PUBLIC_USE_MOCK=false
+```
+
+- `GEMINI_API_KEY` 必须配置在 **Environment Variables** 中，不要使用 `NEXT_PUBLIC_` 前缀。
+- 生产环境建议将 `NEXT_PUBLIC_USE_MOCK` 设为 `false`。

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { useLoading } from '@/hooks/useLoading';
-import { analyzeProduct } from '@/lib/api/gemini';
+import { analyzeProduct } from '@/lib/api/client';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
 export default function AnalyzePage() {

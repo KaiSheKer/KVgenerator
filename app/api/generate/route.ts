@@ -1,0 +1,42 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { generatePoster } from '@/lib/api/nanobanana';
+
+export const runtime = 'nodejs';
+
+interface GenerationRequest {
+  prompt: string;
+  negative?: string;
+  width?: number;
+  height?: number;
+  referenceImage?: string;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as GenerationRequest;
+
+    if (!body?.prompt || typeof body.prompt !== 'string') {
+      return NextResponse.json(
+        { error: 'Missing or invalid prompt' },
+        { status: 400 }
+      );
+    }
+
+    const dataUrl = await generatePoster({
+      prompt: body.prompt,
+      negative: body.negative,
+      width: body.width,
+      height: body.height,
+      referenceImage: body.referenceImage,
+    });
+
+    return NextResponse.json({ dataUrl });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Generate API failed',
+      },
+      { status: 500 }
+    );
+  }
+}

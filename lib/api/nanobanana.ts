@@ -1,3 +1,4 @@
+import 'server-only';
 import { withRetry } from '@/lib/errors/errorHandler';
 
 interface GenerationRequest {
@@ -12,11 +13,11 @@ interface GenerationRequest {
 export async function generatePoster(
   request: GenerationRequest
 ): Promise<string> {
-  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  const imageModel = process.env.NEXT_PUBLIC_GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
+  const apiKey = process.env.GEMINI_API_KEY;
+  const imageModel = process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
   const fallbackImageModel =
-    process.env.NEXT_PUBLIC_GEMINI_IMAGE_FALLBACK_MODEL?.trim() || '';
-  const allowFlashFallback = process.env.NEXT_PUBLIC_ALLOW_FLASH_FALLBACK === 'true';
+    process.env.GEMINI_IMAGE_FALLBACK_MODEL?.trim() || '';
+  const allowFlashFallback = process.env.ALLOW_FLASH_FALLBACK === 'true';
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }

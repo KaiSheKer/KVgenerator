@@ -1,3 +1,4 @@
+import 'server-only';
 import { withRetry } from '@/lib/errors/errorHandler';
 
 interface AnalysisResponse {
@@ -86,9 +87,9 @@ const ANALYSIS_PROMPT = `
 `;
 
 export async function analyzeProduct(imageBase64: string): Promise<AnalysisResponse> {
-  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   const analysisModel = resolveAnalysisModel(
-    process.env.NEXT_PUBLIC_GEMINI_ANALYSIS_MODEL || 'gemini-2.5-flash'
+    process.env.GEMINI_ANALYSIS_MODEL || 'gemini-2.5-flash'
   );
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { useLoading } from '@/hooks/useLoading';
-import { generatePoster, generatePosterMock } from '@/lib/api/nanobanana';
+import { generatePoster, generatePosterMock } from '@/lib/api/client';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
