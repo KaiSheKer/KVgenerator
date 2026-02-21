@@ -19,26 +19,29 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={`${inter.className} text-foreground antialiased`} suppressHydrationWarning>
         <ErrorBoundary>
           <AppProvider>
-            <div className="min-h-screen bg-background">
-              {/* Header */}
-              <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-                <div className="container flex h-16 items-center px-4">
-                  <h1 className="text-xl font-bold">KV Generator</h1>
+            <div className="min-h-screen">
+              <header className="border-b border-border/60 bg-background/55 backdrop-blur-xl">
+                <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-gradient-to-r from-primary to-accent" />
+                    <h1 className="text-lg font-semibold tracking-wide">KV Generator Studio</h1>
+                  </div>
+                  <p className="text-xs text-muted-foreground">AI Poster Pipeline</p>
                 </div>
               </header>
 
-              {/* Main Content */}
-              <main className="container py-8 px-4">
-                {children}
+              <main className="mx-auto w-full max-w-[1440px] p-6 lg:p-8">
+                <div className="studio-shell p-4 lg:p-5">
+                  {children}
+                </div>
               </main>
 
-              {/* Footer */}
-              <footer className="border-t py-6">
-                <div className="container text-center text-sm text-muted-foreground px-4">
-                  © 2026 KV Generator. All rights reserved.
+              <footer className="pb-6">
+                <div className="mx-auto px-6 text-center text-xs text-muted-foreground">
+                  © 2026 KV Generator. Crafted for portfolio showcase.
                 </div>
               </footer>
             </div>

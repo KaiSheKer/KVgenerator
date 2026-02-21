@@ -6,6 +6,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StyleCard } from '@/components/StyleCard';
+import type { PosterAspectRatio } from '@/contexts/AppContext';
 
 const VISUAL_STYLES = [
   { id: 'magazine', name: '杂志编辑', nameEn: 'Magazine Editorial', description: '高级、专业、大片感、粗衬线标题、极简留白' },
@@ -32,6 +33,17 @@ const TEXT_LAYOUTS = [
   { id: 'separated', name: '中英分离', description: '中英文分别放置在不同位置' },
 ];
 
+const ASPECT_RATIOS: PosterAspectRatio[] = [
+  '9:16',
+  '3:4',
+  '2:3',
+  '1:1',
+  '4:3',
+  '3:2',
+  '16:9',
+  '21:9',
+];
+
 export default function StylePage() {
   const router = useRouter();
   const { editedProductInfo, selectedStyle, setSelectedStyle } = useAppContext();
@@ -39,6 +51,9 @@ export default function StylePage() {
   const [typographyStyle, setTypographyStyle] = useState(selectedStyle?.typography || 'glassmorphism');
   const [textLayout, setTextLayout] = useState<'stacked' | 'parallel' | 'separated'>(
     selectedStyle?.textLayout || 'stacked'
+  );
+  const [aspectRatio, setAspectRatio] = useState<PosterAspectRatio>(
+    selectedStyle?.aspectRatio || '9:16'
   );
 
   useEffect(() => {
@@ -56,6 +71,7 @@ export default function StylePage() {
       visual: visualStyle,
       typography: typographyStyle,
       textLayout,
+      aspectRatio,
     });
     router.push('/prompts');
   };
@@ -64,16 +80,21 @@ export default function StylePage() {
   const recommendedTypography = editedProductInfo.recommendedTypography || 'glassmorphism';
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 p-8 animate-fade-in">
-      {/* 简化的标题 */}
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-semibold">选择视觉风格</h2>
-        <p className="text-sm text-muted-foreground">AI 推荐: {VISUAL_STYLES.find(s => s.id === recommendedStyle)?.name}</p>
+    <div className="mx-auto max-w-7xl space-y-6 animate-fade-in">
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Style Config</p>
+          <h2 className="text-2xl font-semibold">选择视觉风格</h2>
+          <p className="text-sm text-muted-foreground">AI 推荐: {VISUAL_STYLES.find(s => s.id === recommendedStyle)?.name}</p>
+        </div>
+        <div className="hidden rounded-full border border-border/70 px-3 py-1 text-xs text-muted-foreground md:block">
+          Step 3 / 6
+        </div>
       </div>
 
-      {/* 视觉风格网格 */}
-      <Card className="p-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <Card className="studio-panel p-6">
+        <h3 className="mb-4 text-sm font-semibold tracking-wide">视觉风格</h3>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {VISUAL_STYLES.map((style) => (
             <StyleCard
               key={style.id}
@@ -86,10 +107,9 @@ export default function StylePage() {
         </div>
       </Card>
 
-      {/* 文字排版 */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">文字排版</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+      <Card className="studio-panel p-6">
+        <h3 className="mb-4 text-sm font-semibold tracking-wide">文字排版</h3>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {TYPOGRAPHY_STYLES.map((style) => (
             <StyleCard
               key={style.id}
@@ -102,10 +122,9 @@ export default function StylePage() {
         </div>
       </Card>
 
-      {/* 中英文排版格式 */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">中英文排版格式</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <Card className="studio-panel p-6">
+        <h3 className="mb-4 text-sm font-semibold tracking-wide">中英文排版格式</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {TEXT_LAYOUTS.map((layout) => (
             <StyleCard
               key={layout.id}
@@ -119,12 +138,30 @@ export default function StylePage() {
         </div>
       </Card>
 
-      {/* 导航按钮 */}
+      <Card className="studio-panel p-6">
+        <h3 className="mb-4 text-sm font-semibold tracking-wide">海报尺寸比例</h3>
+        <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
+          {ASPECT_RATIOS.map((ratio) => (
+            <button
+              key={ratio}
+              className={
+                aspectRatio === ratio
+                  ? "rounded-xl border border-primary/80 bg-gradient-to-r from-primary to-accent px-3 py-2 text-sm font-medium text-white"
+                  : "rounded-xl border border-border/70 bg-secondary/45 px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground"
+              }
+              onClick={() => setAspectRatio(ratio)}
+            >
+              {ratio}
+            </button>
+          ))}
+        </div>
+      </Card>
+
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => router.back()}>
           ← 上一步
         </Button>
-        <Button size="lg" onClick={handleNext} className="bg-gradient-to-r from-primary to-accent">
+        <Button size="lg" onClick={handleNext}>
           生成提示词 →
         </Button>
       </div>

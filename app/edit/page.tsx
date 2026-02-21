@@ -27,20 +27,19 @@ export default function EditPage() {
       visual: editedProductInfo.recommendedStyle,
       typography: editedProductInfo.recommendedTypography,
       textLayout: 'stacked',
+      aspectRatio: '9:16',
     });
     router.push('/style');
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 p-8 animate-fade-in">
-      {/* 简化标题 */}
+    <div className="mx-auto max-w-5xl space-y-6 animate-fade-in">
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-semibold">编辑产品信息</h2>
         <p className="text-sm text-muted-foreground">请确认并编辑 AI 提取的产品信息</p>
       </div>
 
-      {/* 内容卡片 */}
-      <Card className="p-8 rounded-3xl shadow-lg space-y-6">
+      <Card className="studio-panel space-y-6 p-6 lg:p-8">
         {/* 品牌名称 */}
         <div className="space-y-2">
           <Label>品牌名称 (中文)</Label>
@@ -144,7 +143,7 @@ export default function EditPage() {
         <Button variant="outline" onClick={() => router.back()}>
           ← 上一步
         </Button>
-        <Button onClick={handleNext} className="bg-gradient-to-r from-primary to-accent">
+        <Button onClick={handleNext}>
           下一步: 选择风格 →
         </Button>
       </div>

@@ -9,7 +9,11 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { GeneratedPoster } from '@/contexts/AppContext';
+import type {
+  GeneratedPoster,
+  GenerationQualityMode,
+  PosterAspectRatio,
+} from '@/contexts/AppContext';
 
 interface PosterProgress {
   id: string;
@@ -20,24 +24,95 @@ interface PosterProgress {
 
 export default function GeneratePage() {
   const router = useRouter();
-  const { generatedPrompts, setGeneratedPosters } = useAppContext();
-  const { isLoading, progress, startLoading, updateProgress, stopLoading } = useLoading();
+  const {
+    generatedPrompts,
+    selectedStyle,
+    selectedPosterIds,
+    selectedQualityMode,
+    uploadedImage,
+    setGeneratedPosters,
+  } = useAppContext();
+  const { isLoading, progress, message, startLoading, updateProgress, stopLoading } = useLoading();
   const [postersProgress, setPostersProgress] = useState<PosterProgress[]>([]);
   const [completed, setCompleted] = useState(false);
   const useMock = process.env.NEXT_PUBLIC_USE_MOCK !== 'false';
-  const generationLimit = 1;
+
+  const getPosterSize = useCallback((aspectRatio?: PosterAspectRatio) => {
+    const ratio = aspectRatio || '9:16';
+    const ratioMap: Record<PosterAspectRatio, { width: number; height: number }> = {
+      '9:16': { width: 900, height: 1600 },
+      '3:4': { width: 900, height: 1200 },
+      '2:3': { width: 900, height: 1350 },
+      '1:1': { width: 1200, height: 1200 },
+      '4:3': { width: 1200, height: 900 },
+      '3:2': { width: 1200, height: 800 },
+      '16:9': { width: 1600, height: 900 },
+      '21:9': { width: 2100, height: 900 },
+    };
+    return ratioMap[ratio];
+  }, []);
+
+  const postersToGenerate = useCallback(() => {
+    if (!generatedPrompts) return [];
+    if (!selectedPosterIds || selectedPosterIds.length === 0) {
+      return generatedPrompts.posters;
+    }
+    const selectedSet = new Set(selectedPosterIds);
+    return generatedPrompts.posters.filter((poster) => selectedSet.has(poster.id));
+  }, [generatedPrompts, selectedPosterIds]);
+
+  const resolveCandidateCount = useCallback((mode: GenerationQualityMode) => {
+    switch (mode) {
+      case 'fast':
+        return 1;
+      case 'balanced':
+        return 2;
+      case 'quality':
+      default:
+        return 3;
+    }
+  }, []);
+
+  const scoreCandidate = useCallback((url: string, posterId: string, attempt: number) => {
+    let score = 0;
+    if (url.startsWith('data:image/')) score += 55;
+    if (url.includes('placeholder')) score -= 80;
+    if (url.length > 8000) score += 20;
+    if (url.length > 30000) score += 10;
+    if (posterId === '01' && url.length > 50000) score += 10;
+    score += Math.max(0, 5 - attempt);
+    return score;
+  }, []);
+
+  const isCapacityPeakError = useCallback((error: unknown) => {
+    if (!(error instanceof Error)) return false;
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('gemini image api error (429)') ||
+      message.includes('gemini image api error (503)') ||
+      message.includes('resource_exhausted') ||
+      message.includes('quota') ||
+      message.includes('high demand')
+    );
+  }, []);
 
   const startGeneration = useCallback(async () => {
     if (!generatedPrompts) return;
+    const queue = postersToGenerate();
+    if (queue.length === 0) {
+      router.push('/prompts');
+      return;
+    }
+    const { width, height } = getPosterSize(selectedStyle?.aspectRatio);
+    const candidateCount = resolveCandidateCount(selectedQualityMode);
 
-    startLoading('正在生成海报...');
+    startLoading(`正在生成海报（${selectedQualityMode} 模式）...`);
 
     const results: GeneratedPoster[] = [];
-    const postersToGenerate = generatedPrompts.posters.slice(0, generationLimit);
-    const total = postersToGenerate.length;
+    const total = queue.length;
 
     for (let i = 0; i < total; i++) {
-      const poster = postersToGenerate[i];
+      const poster = queue[i];
       const progressValue = Math.round(((i + 1) / total) * 100);
 
       setPostersProgress(prev =>
@@ -52,27 +127,65 @@ export default function GeneratePage() {
       );
 
       try {
-        const request = {
-          prompt: poster.promptEn,
-          negative: poster.negative,
-          width: 720,
-          height: 1280,
-        };
-        const url = useMock
-          ? await generatePosterMock(request)
-          : await generatePoster(request);
+        let bestRawUrl = '';
+        let bestScore = Number.NEGATIVE_INFINITY;
+        const candidateErrors: string[] = [];
+
+        for (let candidateIndex = 0; candidateIndex < candidateCount; candidateIndex++) {
+          updateProgress(
+            progressValue,
+            `海报 ${poster.id} 候选 ${candidateIndex + 1}/${candidateCount} 生成中...`
+          );
+          try {
+            const request = {
+              // Keep AI-native text rendering; disable frontend post-overlay path.
+              prompt: poster.promptEn,
+              negative: poster.negative,
+              width,
+              height,
+              referenceImage: uploadedImage?.preview,
+            };
+            const candidateUrl = useMock
+              ? await generatePosterMock(request)
+              : await generatePoster(request);
+            const score = scoreCandidate(candidateUrl, poster.id, candidateIndex);
+            if (!bestRawUrl || score > bestScore) {
+              bestRawUrl = candidateUrl;
+              bestScore = score;
+            }
+          } catch (candidateError) {
+            const errorMessage =
+              candidateError instanceof Error ? candidateError.message : '未知错误';
+            candidateErrors.push(`候选 ${candidateIndex + 1}: ${errorMessage}`);
+            console.warn(`海报 ${poster.id} 候选 ${candidateIndex + 1} 失败:`, candidateError);
+
+            // 高峰期限流时，如果已有可用候选，直接降级采用当前最佳图，避免整张失败
+            if (bestRawUrl && isCapacityPeakError(candidateError)) {
+              updateProgress(
+                progressValue,
+                `海报 ${poster.id} 遇到限流，已采用当前最佳候选继续`
+              );
+              break;
+            }
+          }
+        }
+        if (!bestRawUrl) {
+          const firstError = candidateErrors[0] || '未获取到可用候选图';
+          throw new Error(firstError);
+        }
+        const finalUrl = bestRawUrl;
 
         setPostersProgress(prev =>
           prev.map(p =>
             p.id === poster.id
-              ? { ...p, status: 'completed', url }
+              ? { ...p, status: 'completed', url: finalUrl }
               : p
           )
         );
 
         results.push({
           id: poster.id,
-          url,
+          url: finalUrl,
           status: 'completed',
         });
       } catch (error) {
@@ -92,7 +205,23 @@ export default function GeneratePage() {
     updateProgress(100, '海报生成完成!');
     stopLoading();
     setCompleted(true);
-  }, [generatedPrompts, setGeneratedPosters, startLoading, stopLoading, updateProgress, useMock]);
+  }, [
+    generatedPrompts,
+    getPosterSize,
+    postersToGenerate,
+    resolveCandidateCount,
+    router,
+    selectedStyle?.aspectRatio,
+    setGeneratedPosters,
+    scoreCandidate,
+    selectedQualityMode,
+    startLoading,
+    stopLoading,
+    updateProgress,
+    uploadedImage?.preview,
+    useMock,
+    isCapacityPeakError,
+  ]);
 
   useEffect(() => {
     if (!generatedPrompts) {
@@ -100,16 +229,20 @@ export default function GeneratePage() {
       return;
     }
 
-    // 初始化进度
-    const initialProgress = generatedPrompts.posters.slice(0, generationLimit).map(poster => ({
+    const queue = postersToGenerate();
+    if (queue.length === 0) {
+      router.push('/prompts');
+      return;
+    }
+
+    const initialProgress = queue.map(poster => ({
       id: poster.id,
       status: 'pending' as const,
     }));
     setPostersProgress(initialProgress);
 
-    // 开始生成
     startGeneration();
-  }, [generatedPrompts, router, startGeneration]);
+  }, [generatedPrompts, postersToGenerate, router, startGeneration]);
 
   if (!generatedPrompts) {
     return null;
@@ -125,6 +258,7 @@ export default function GeneratePage() {
           {/* 标题和进度 */}
           <div className="text-center space-y-4">
             <h2 className="text-2xl font-semibold">正在生成海报...</h2>
+            <p className="text-sm text-muted-foreground">{message}</p>
             <Progress value={progress} className="h-2" />
             <p className="text-sm text-muted-foreground">
               {Math.round(progress)}% ({completedCount}/{total})
@@ -132,7 +266,7 @@ export default function GeneratePage() {
           </div>
 
           {/* 海报进度网格 */}
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
             {postersProgress.map((poster) => (
               <div
                 key={poster.id}
@@ -157,7 +291,10 @@ export default function GeneratePage() {
 
           {/* 当前状态 */}
           <div className="text-center text-sm text-muted-foreground">
-            当前: 海报 {postersProgress.findIndex(p => p.status === 'generating') + 1}
+            {(() => {
+              const active = postersProgress.find((p) => p.status === 'generating');
+              return active ? `当前: 海报 ${active.id}` : '当前: 汇总结果中';
+            })()}
           </div>
 
           {/* 取消按钮 */}

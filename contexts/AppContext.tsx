@@ -45,10 +45,43 @@ export interface AnalysisResponse {
   recommendedTypography: string;
 }
 
+export type PosterAspectRatio =
+  | '9:16'
+  | '3:4'
+  | '2:3'
+  | '1:1'
+  | '4:3'
+  | '3:2'
+  | '16:9'
+  | '21:9';
+
+export type GenerationQualityMode = 'fast' | 'balanced' | 'quality';
+
 export interface StyleConfig {
   visual: string;
   typography: string;
   textLayout: 'stacked' | 'parallel' | 'separated';
+  aspectRatio: PosterAspectRatio;
+}
+
+export interface PosterOverlayPalette {
+  primary: string;
+  secondary: string;
+  accent: string;
+  textOnDark: string;
+}
+
+export interface PosterOverlaySpec {
+  layout: 'hero' | 'lifestyle' | 'specs' | 'generic';
+  titleZh: string;
+  titleEn: string;
+  subtitleZh?: string;
+  subtitleEn?: string;
+  bullets?: Array<{ zh: string; en: string }>;
+  ctaZh?: string;
+  ctaEn?: string;
+  logoText?: string;
+  palette?: PosterOverlayPalette;
 }
 
 export interface PosterPrompt {
@@ -59,6 +92,9 @@ export interface PosterPrompt {
   promptZh: string;
   promptEn: string;
   negative: string;
+  runtimePromptEn?: string;
+  runtimeNegative?: string;
+  overlaySpec?: PosterOverlaySpec;
 }
 
 export interface PromptsSystem {
@@ -70,6 +106,8 @@ export interface GeneratedPoster {
   id: string;
   url: string;
   status: 'completed' | 'failed';
+  rawUrl?: string;
+  overlayApplied?: boolean;
 }
 
 interface AppState {
@@ -78,6 +116,8 @@ interface AppState {
   productInfo: AnalysisResponse | null;
   editedProductInfo: AnalysisResponse | null;
   selectedStyle: StyleConfig | null;
+  selectedPosterIds: string[] | null;
+  selectedQualityMode: GenerationQualityMode;
   generatedPrompts: PromptsSystem | null;
   generatedPosters: GeneratedPoster[] | null;
   isLoading: boolean;
@@ -90,6 +130,8 @@ interface AppActions {
   setProductInfo: (info: AnalysisResponse) => void;
   updateProductInfo: (info: Partial<AnalysisResponse>) => void;
   setSelectedStyle: (style: StyleConfig) => void;
+  setSelectedPosterIds: (ids: string[] | null) => void;
+  setSelectedQualityMode: (mode: GenerationQualityMode) => void;
   setGeneratedPrompts: (prompts: PromptsSystem) => void;
   setGeneratedPosters: (posters: GeneratedPoster[]) => void;
   setLoading: (loading: boolean) => void;
@@ -103,6 +145,8 @@ const initialState: AppState = {
   productInfo: null,
   editedProductInfo: null,
   selectedStyle: null,
+  selectedPosterIds: null,
+  selectedQualityMode: 'quality',
   generatedPrompts: null,
   generatedPosters: null,
   isLoading: false,
@@ -141,6 +185,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, selectedStyle: style }));
   }, []);
 
+  const setSelectedPosterIds = useCallback((ids: string[] | null) => {
+    setState((prev) => ({ ...prev, selectedPosterIds: ids }));
+  }, []);
+
+  const setSelectedQualityMode = useCallback((mode: GenerationQualityMode) => {
+    setState((prev) => ({ ...prev, selectedQualityMode: mode }));
+  }, []);
+
   const setGeneratedPrompts = useCallback((prompts: PromptsSystem) => {
     setState((prev) => ({ ...prev, generatedPrompts: prompts }));
   }, []);
@@ -167,6 +219,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProductInfo,
     updateProductInfo,
     setSelectedStyle,
+    setSelectedPosterIds,
+    setSelectedQualityMode,
     setGeneratedPrompts,
     setGeneratedPosters,
     setLoading,
@@ -178,6 +232,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProductInfo,
     updateProductInfo,
     setSelectedStyle,
+    setSelectedPosterIds,
+    setSelectedQualityMode,
     setGeneratedPrompts,
     setGeneratedPosters,
     setLoading,

@@ -6,6 +6,7 @@ interface GenerationRequest {
   width?: number;
   height?: number;
   num?: number;
+  referenceImage?: string;
 }
 
 export async function generatePoster(
@@ -15,6 +16,7 @@ export async function generatePoster(
   const imageModel = process.env.NEXT_PUBLIC_GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
   const fallbackImageModel =
     process.env.NEXT_PUBLIC_GEMINI_IMAGE_FALLBACK_MODEL?.trim() || '';
+  const allowFlashFallback = process.env.NEXT_PUBLIC_ALLOW_FLASH_FALLBACK === 'true';
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
@@ -32,6 +34,7 @@ export async function generatePoster(
       model: imageModel,
       prompt,
       aspectRatio,
+      referenceImage: request.referenceImage,
     });
 
     if (primaryAttempt.dataUrl) {
@@ -43,7 +46,8 @@ export async function generatePoster(
         primaryAttempt.status,
         primaryAttempt.message,
         imageModel,
-        fallbackImageModel
+        fallbackImageModel,
+        allowFlashFallback
       )
     ) {
       console.warn(
@@ -54,6 +58,7 @@ export async function generatePoster(
         model: fallbackImageModel,
         prompt,
         aspectRatio,
+        referenceImage: request.referenceImage,
       });
       if (fallbackAttempt.dataUrl) {
         return fallbackAttempt.dataUrl;
@@ -188,12 +193,27 @@ async function requestImageFromModel(args: {
   model: string;
   prompt: string;
   aspectRatio: string;
+  referenceImage?: string;
 }): Promise<{
   status: number;
   message: string;
   parsedError: GeminiApiErrorPayload | null;
   dataUrl?: string;
 }> {
+  const requestParts: Array<
+    | { text: string }
+    | { inline_data: { mime_type: string; data: string } }
+  > = [{ text: args.prompt }];
+  const parsedReference = parseDataUrl(args.referenceImage);
+  if (parsedReference) {
+    requestParts.push({
+      inline_data: {
+        mime_type: parsedReference.mimeType,
+        data: parsedReference.base64,
+      },
+    });
+  }
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${args.model}:generateContent`,
     {
@@ -206,7 +226,7 @@ async function requestImageFromModel(args: {
         contents: [
           {
             role: 'user',
-            parts: [{ text: args.prompt }],
+            parts: requestParts,
           },
         ],
         generationConfig: {
@@ -230,21 +250,25 @@ async function requestImageFromModel(args: {
   }
 
   const data = await response.json();
-  const parts = data?.candidates?.[0]?.content?.parts;
-  const imagePart = Array.isArray(parts)
-    ? parts.find(
+  const responseParts: Array<{
+    text?: string;
+    inlineData?: { data?: string; mimeType?: string };
+    inline_data?: { data?: string; mime_type?: string };
+  }> = Array.isArray(data?.candidates?.[0]?.content?.parts)
+    ? data.candidates[0].content.parts
+    : [];
+  const imagePart = responseParts.find(
         (part: { inlineData?: { data?: string; mimeType?: string }; inline_data?: { data?: string; mime_type?: string } }) =>
           part?.inlineData?.data || part?.inline_data?.data
-      )
-    : null;
-  const inline = imagePart?.inlineData || imagePart?.inline_data;
-  const base64 = inline?.data;
-  const mimeType = inline?.mimeType || inline?.mime_type || 'image/png';
+      ) || null;
+  const base64 = imagePart?.inlineData?.data || imagePart?.inline_data?.data;
+  const mimeType =
+    imagePart?.inlineData?.mimeType ||
+    imagePart?.inline_data?.mime_type ||
+    'image/png';
 
   if (!base64) {
-    const modelText = Array.isArray(parts)
-      ? parts.find((part: { text?: string }) => typeof part.text === 'string')?.text
-      : '';
+    const modelText = responseParts.find((part: { text?: string }) => typeof part.text === 'string')?.text || '';
     return {
       status: 502,
       message: `No image generated${modelText ? `: ${modelText}` : ''}`,
@@ -260,16 +284,43 @@ async function requestImageFromModel(args: {
   };
 }
 
+function parseDataUrl(
+  value?: string
+): { mimeType: string; base64: string } | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const dataUrlMatch = trimmed.match(/^data:([^;]+);base64,(.+)$/);
+  if (dataUrlMatch) {
+    return {
+      mimeType: dataUrlMatch[1],
+      base64: dataUrlMatch[2],
+    };
+  }
+
+  // Allow raw base64 fallback; assume jpeg for uploaded product photos.
+  if (/^[A-Za-z0-9+/=]+$/.test(trimmed)) {
+    return {
+      mimeType: 'image/jpeg',
+      base64: trimmed,
+    };
+  }
+  return null;
+}
+
 function shouldFallbackToSecondaryModel(
   status: number,
   message: string,
   primaryModel: string,
-  fallbackModel: string
+  fallbackModel: string,
+  allowFlashFallback: boolean
 ): boolean {
   if (!fallbackModel) return false;
   if (primaryModel === fallbackModel) return false;
-  if (status !== 503) return false;
-  return /high demand|unavailable|try again later/i.test(message);
+  if (!allowFlashFallback && /flash-image/i.test(fallbackModel)) return false;
+  if (status !== 429 && status !== 503) return false;
+  return /high demand|unavailable|try again later|quota|rate limit|resource_exhausted/i.test(
+    message
+  );
 }
 
 function buildGeminiImageError(

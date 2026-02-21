@@ -1,81 +1,84 @@
-import { AnalysisResponse, PosterOverlaySpec, StyleConfig } from '@/contexts/AppContext';
+# 2026-02-21 Prompt Extraction (Current Code)
 
-interface PosterPrompt {
-  id: string;
-  title: string;
-  titleEn: string;
-  type: 'hero' | 'lifestyle' | 'process' | 'detail' | 'brand' | 'specs' | 'usage';
-  promptZh: string;
-  promptEn: string;
-  negative: string;
-  runtimePromptEn?: string;
-  runtimeNegative?: string;
-  overlaySpec?: PosterOverlaySpec;
+## Scope
+提取范围为当前代码中会影响 AI 识别与生图的提示词内容（不含历史设计文档）。
+
+- 识别提示词: `/Users/ericcao/CascadeProjects/kv-generator/lib/api/gemini.ts`
+- 海报模板与 runtime 提示词: `/Users/ericcao/CascadeProjects/kv-generator/lib/utils/promptGenerator.ts`
+- 生图请求拼接: `/Users/ericcao/CascadeProjects/kv-generator/lib/api/nanobanana.ts`
+- 当前实际调用链路: `/Users/ericcao/CascadeProjects/kv-generator/app/generate/page.tsx`
+
+## 1) Analysis Prompt (image -> structured JSON)
+
+Source: `/Users/ericcao/CascadeProjects/kv-generator/lib/api/gemini.ts`
+
+```ts
+const ANALYSIS_PROMPT = `
+请仔细分析这张产品图片,提取以下信息并以 JSON 格式返回:
+
+1. 品牌名称(中英文)
+2. 产品类型(大类和具体产品)
+3. 产品规格
+4. 核心卖点(5个,中英文双语)
+5. 配色方案(主色、辅助色、点缀色的 HEX 值)
+6. 设计风格
+7. 目标受众
+8. 品牌调性
+9. 包装亮点
+10. 产品参数(净含量、成分、营养、用法、保质期、储存)
+11. 推荐的视觉风格(从以下选择: magazine, watercolor, tech, vintage, minimal, cyber, organic)
+12. 推荐的文字排版(从以下选择: glassmorphism, 3d, handwritten, serif, sans-serif, thin)
+
+请严格按照以下 JSON 格式返回:
+{
+  "brandName": {"zh": "", "en": ""},
+  "productType": {"category": "", "specific": ""},
+  "specifications": "",
+  "sellingPoints": [
+    {"zh": "", "en": ""},
+    {"zh": "", "en": ""},
+    {"zh": "", "en": ""},
+    {"zh": "", "en": ""},
+    {"zh": "", "en": ""}
+  ],
+  "colorScheme": {
+    "primary": ["#HEX", "#HEX"],
+    "secondary": ["#HEX"],
+    "accent": ["#HEX", "#HEX"]
+  },
+  "designStyle": "",
+  "targetAudience": "",
+  "brandTone": "",
+  "packagingHighlights": ["", "", ""],
+  "parameters": {
+    "netContent": "",
+    "ingredients": "",
+    "nutrition": "",
+    "usage": "",
+    "shelfLife": "",
+    "storage": ""
+  },
+  "recommendedStyle": "",
+  "recommendedTypography": ""
 }
+`;
+```
 
-interface PromptsSystem {
-  logo: string;
-  posters: PosterPrompt[];
-}
+## 2) Poster Prompt Templates (display track, 10 posters) + Global Negative
 
-export function generatePrompts(
-  productInfo: AnalysisResponse,
-  style: StyleConfig
-): PromptsSystem {
-  const {
-    brandName,
-    productType,
-    specifications,
-    sellingPoints,
-    colorScheme,
-    designStyle,
-    targetAudience,
-    brandTone,
-    packagingHighlights,
-    parameters,
-  } = productInfo;
+Source: `/Users/ericcao/CascadeProjects/kv-generator/lib/utils/promptGenerator.ts`
 
-  const { visual, typography, textLayout, aspectRatio } = style;
-  const normalizedSellingPoints = Array.from({ length: 5 }, (_, index) => {
-    const point = sellingPoints[index];
-    return {
-      zh: point?.zh || `核心卖点${index + 1}`,
-      en: point?.en || `Key selling point ${index + 1}`,
-    };
-  });
+### 2.1 Negative Prompt
 
-  // 生成排版说明
-  const getTypographyDesc = () => {
-    const typographyMap: Record<string, string> = {
-      glassmorphism: '玻璃拟态效果 - 半透明背景卡片,柔和圆角,现代感强',
-      '3d': '3D浮雕效果 - 金属质感文字,光影立体,奢华感强',
-      handwritten: '手写体标注 - 水彩笔触,不规则布局,艺术感强',
-      serif: '粗衬线大标题 - 细线装饰,网格对齐,杂志感强',
-      'sans-serif': '无衬线粗体 - 霓虹描边,发光效果,赛博感强',
-      thin: '极细线条字 - 大量留白,精确对齐,极简感强',
-    };
-    return typographyMap[typography] || typographyMap.glassmorphism;
-  };
-
-  // 生成中英文排版格式说明
-  const getTextLayoutDesc = () => {
-    const layoutMap: Record<string, string> = {
-      stacked: '中英文垂直堆叠 - 中文在上(较大字号),英文在下(较小字号),居中对齐',
-      parallel: '中英文横向并列 - 用竖线或斜杠分隔,字号相同或中文略大',
-      separated: '中英文分离放置 - 中文在左上角,英文在右下角,形成视觉对比',
-    };
-    return layoutMap[textLayout] || layoutMap.stacked;
-  };
-
-  const typographyDesc = getTypographyDesc();
-  const textLayoutDesc = getTextLayoutDesc();
-  const aspectRatioOrientationZh = getAspectRatioOrientationZh(aspectRatio);
-  const aspectRatioOrientationEn = getAspectRatioOrientationEn(aspectRatio);
-
+```ts
   // 生成负面词
   const negativePrompt = `cluttered, busy, messy, blurry, low quality, watermark, text, logo, distorted, ugly, bad anatomy, disfigured, poorly drawn face, mutation, mutated, extra limb, ugly, poorly drawn hands, missing limb, floating limbs, disconnected limbs, malformed hands, blur, out of focus, long neck, long body, mutated hands and fingers, out of frame, disproportion, gross proportions, bad proportions, low resolution, compression artifacts, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, blurry, bad proportions, extra limbs, cloned face, disfigured, out of frame, ugly, extra limbs, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck`;
 
-  // 生成10张海报的提示词
+```
+
+### 2.2 Poster 01-10 Templates (promptZh / promptEn)
+
+```ts
   const posters: PosterPrompt[] = [
     // 海报01 - 主KV视觉
     {
@@ -609,45 +612,11 @@ Show how to use ${productType.specific}
       negative: negativePrompt,
     },
   ];
+```
 
-  const postersWithAspectRatio = posters.map((poster) => ({
-    ...poster,
-    promptZh: injectAspectRatioRuleZh(
-      poster.promptZh,
-      aspectRatio,
-      aspectRatioOrientationZh
-    ),
-    promptEn: injectAspectRatioRuleEn(
-      poster.promptEn,
-      aspectRatio,
-      aspectRatioOrientationEn
-    ),
-  }));
+### 2.3 Aspect Ratio Injection (appends extra rule)
 
-  const postersWithRuntime = postersWithAspectRatio.map((poster) => ({
-    ...poster,
-    runtimePromptEn: buildRuntimePromptEn({
-      poster,
-      productInfo,
-      style,
-      aspectRatio,
-      aspectRatioOrientationEn,
-      normalizedSellingPoints,
-    }),
-    runtimeNegative: buildRuntimeNegativeByType(poster.type),
-    overlaySpec: buildOverlaySpecForPoster({
-      poster,
-      productInfo,
-      normalizedSellingPoints,
-    }),
-  }));
-
-  return {
-    logo: brandName.zh,
-    posters: postersWithRuntime,
-  };
-}
-
+```ts
 function injectAspectRatioRuleZh(
   prompt: string,
   aspectRatio: string,
@@ -665,23 +634,15 @@ function injectAspectRatioRuleEn(
   const replaced = prompt.replaceAll('9:16 vertical', `${aspectRatio} ${orientation}`);
   return `${replaced}\n\n**Aspect Ratio Requirement**:\n- Use ${aspectRatio} ${orientation} composition`;
 }
+```
 
-function getAspectRatioOrientationZh(aspectRatio: string): string {
-  const verticalRatios = new Set(['9:16', '3:4', '2:3']);
-  const squareRatios = new Set(['1:1']);
-  if (verticalRatios.has(aspectRatio)) return '竖版';
-  if (squareRatios.has(aspectRatio)) return '方版';
-  return '横版';
-}
+## 3) Runtime Prompt Compiler (execution track, currently generated in data model)
 
-function getAspectRatioOrientationEn(aspectRatio: string): string {
-  const verticalRatios = new Set(['9:16', '3:4', '2:3']);
-  const squareRatios = new Set(['1:1']);
-  if (verticalRatios.has(aspectRatio)) return 'vertical';
-  if (squareRatios.has(aspectRatio)) return 'square';
-  return 'horizontal';
-}
+Source: `/Users/ericcao/CascadeProjects/kv-generator/lib/utils/promptGenerator.ts`
 
+### 3.1 Runtime Prompt 8-section builder
+
+```ts
 function buildRuntimePromptEn(args: {
   poster: PosterPrompt;
   productInfo: AnalysisResponse;
@@ -746,7 +707,11 @@ function buildStyleGrammar(
     layoutGrammar[textLayout],
   ].join('; ');
 }
+```
 
+### 3.2 Per-poster Runtime Blueprint (01-10)
+
+```ts
 function getPosterRuntimeBlueprint(
   posterId: string,
   posterType: PosterPrompt['type']
@@ -815,7 +780,11 @@ function getPosterRuntimeBlueprint(
   }
   return selected;
 }
+```
 
+### 3.3 Runtime Negative (global + per type)
+
+```ts
 function buildRuntimeNegativeByType(type: PosterPrompt['type']): string {
   const globalNegatives = buildGlobalRuntimeNegative();
   const typeNegatives: Record<PosterPrompt['type'], string[]> = {
@@ -856,160 +825,80 @@ function buildGlobalRuntimeNegative(): string[] {
     'large centered headline text',
   ];
 }
+```
 
-function buildOverlaySpecForPoster(args: {
-  poster: PosterPrompt;
-  productInfo: AnalysisResponse;
-  normalizedSellingPoints: Array<{ zh: string; en: string }>;
-}): PosterOverlaySpec | undefined {
-  const { poster, productInfo, normalizedSellingPoints } = args;
-  const { brandName, colorScheme, parameters } = productInfo;
-  const palette = {
-    primary: colorScheme.primary[0] || '#5F77FF',
-    secondary: colorScheme.secondary[0] || '#8CA2FF',
-    accent: colorScheme.accent[0] || '#C248FF',
-    textOnDark: '#F6F7FF',
-  };
+## 4) Final Prompt Assembly Sent to Gemini Image API
 
-  if (poster.id === '01') {
-    return {
-      layout: 'hero',
-      titleZh: normalizedSellingPoints[0]?.zh || poster.title,
-      titleEn: normalizedSellingPoints[0]?.en || poster.titleEn,
-      subtitleZh: '严选品质，真实可见',
-      subtitleEn: 'Premium quality, clearly presented',
-      bullets: normalizedSellingPoints.slice(0, 3),
-      ctaZh: '立即选购',
-      ctaEn: 'SHOP NOW',
-      logoText: brandName.zh || brandName.en,
-      palette,
-    };
+Source: `/Users/ericcao/CascadeProjects/kv-generator/lib/api/nanobanana.ts`
+
+### 4.1 prompt + negative 拼接规则
+
+```ts
+  return withRetry(async () => {
+    const width = request.width || 720;
+    const height = request.height || 1280;
+    const aspectRatio = getAspectRatio(width, height);
+    const prompt = request.negative
+      ? `${request.prompt}\n\nAvoid: ${request.negative}`
+      : request.prompt;
+
+```
+
+### 4.2 API request payload contents
+
+```ts
+  const requestParts: Array<
+    | { text: string }
+    | { inline_data: { mime_type: string; data: string } }
+  > = [{ text: args.prompt }];
+  const parsedReference = parseDataUrl(args.referenceImage);
+  if (parsedReference) {
+    requestParts.push({
+      inline_data: {
+        mime_type: parsedReference.mimeType,
+        data: parsedReference.base64,
+      },
+    });
   }
 
-  if (poster.id === '02') {
-    return {
-      layout: 'lifestyle',
-      titleZh: '真实场景体验',
-      titleEn: 'LIFESTYLE EXPERIENCE',
-      subtitleZh: normalizedSellingPoints[0]?.zh || '日常使用更放心',
-      subtitleEn: normalizedSellingPoints[0]?.en || 'Built for everyday use',
-      bullets: normalizedSellingPoints.slice(1, 3),
-      ctaZh: '了解更多',
-      ctaEn: 'LEARN MORE',
-      logoText: brandName.zh || brandName.en,
-      palette,
-    };
-  }
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${args.model}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': args.apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: requestParts,
+          },
+        ],
+        generationConfig: {
+          responseModalities: ['TEXT', 'IMAGE'],
+          imageConfig: {
+            aspectRatio: args.aspectRatio,
+          },
+        },
+      }),
+    },
+```
 
-  if (poster.id === '09') {
-    const specBullets = Object.entries(parameters)
-      .filter(([, value]) => Boolean(value))
-      .slice(0, 3)
-      .map(([key, value]) => {
-        const keyZhMap: Record<string, string> = {
-          netContent: '净含量',
-          ingredients: '核心成分',
-          nutrition: '营养信息',
-          usage: '使用方式',
-          shelfLife: '保质期',
-          storage: '储存方式',
-        };
-        const keyEnMap: Record<string, string> = {
-          netContent: 'Net Content',
-          ingredients: 'Ingredients',
-          nutrition: 'Nutrition',
-          usage: 'Usage',
-          shelfLife: 'Shelf Life',
-          storage: 'Storage',
-        };
-        return {
-          zh: `${keyZhMap[key] || key}: ${value}`,
-          en: `${keyEnMap[key] || key}: ${value}`,
-        };
-      });
+## 5) Active Runtime Path (what is actually used now)
 
-    return {
-      layout: 'specs',
-      titleZh: '产品参数',
-      titleEn: 'SPECIFICATIONS',
-      subtitleZh: '关键信息一目了然',
-      subtitleEn: 'Key details at a glance',
-      bullets: specBullets,
-      ctaZh: '查看详情',
-      ctaEn: 'VIEW DETAILS',
-      logoText: brandName.zh || brandName.en,
-      palette,
-    };
-  }
+Source: `/Users/ericcao/CascadeProjects/kv-generator/app/generate/page.tsx`
 
-  return undefined;
-}
+```ts
+            const request = {
+              // Keep AI-native text rendering; disable frontend post-overlay path.
+              prompt: poster.promptEn,
+              negative: poster.negative,
+              width,
+              height,
+              referenceImage: uploadedImage?.preview,
+            };
+```
 
-function mapParameterKeyEn(key: string): string {
-  const map: Record<string, string> = {
-    netContent: 'Net Content',
-    ingredients: 'Ingredients',
-    nutrition: 'Nutrition',
-    usage: 'Usage',
-    shelfLife: 'Shelf Life',
-    storage: 'Storage',
-  };
-  return map[key] || key;
-}
-
-function joinOrFallback(values: string[] | undefined, fallback: string): string {
-  if (!values || values.length === 0) return fallback;
-  const nonEmpty = values.filter((value) => value && value.trim().length > 0);
-  return nonEmpty.length > 0 ? nonEmpty.join(', ') : fallback;
-}
-
-// 辅助函数: 获取视觉风格描述(中文)
-function getVisualStyleDesc(style: string): string {
-  const styleMap: Record<string, string> = {
-    magazine: '杂志编辑风格 - 高级、专业、大片感、粗衬线标题、极简留白',
-    watercolor: '水彩艺术风格 - 温暖、柔和、晕染效果、手绘质感',
-    tech: '科技未来风格 - 冷色调、几何图形、数据可视化、蓝光效果',
-    vintage: '复古胶片风格 - 颗粒质感、暖色调、怀旧氛围、宝丽来边框',
-    minimal: '极简北欧风格 - 性冷淡、大留白、几何线条、黑白灰',
-    cyber: '霓虹赛博风格 - 荧光色、描边发光、未来都市、暗色背景',
-    organic: '自然有机风格 - 植物元素、大地色系、手工质感、环保理念',
-  };
-  return styleMap[style] || styleMap.magazine;
-}
-
-// 辅助函数: 获取视觉风格描述(英文)
-function getVisualStyleDescEn(style: string): string {
-  const styleMap: Record<string, string> = {
-    magazine: 'Magazine Editorial style - High-end, professional, blockbuster feel, bold serif titles, minimalist whitespace',
-    watercolor: 'Watercolor Art style - Warm, soft, smudge effects, hand-painted texture',
-    tech: 'Tech Future style - Cold tones, geometric shapes, data visualization, blue light effects',
-    vintage: 'Vintage Film style - Grain texture, warm tones, nostalgic atmosphere, Polaroid borders',
-    minimal: 'Minimal Nordic style - Cold minimalist, large whitespace, geometric lines, black/white/gray',
-    cyber: 'Neon Cyberpunk style - Fluorescent colors, stroke glow, futuristic city, dark background',
-    organic: 'Natural Organic style - Plant elements, earth tones, handmade texture, eco-friendly concept',
-  };
-  return styleMap[style] || styleMap.magazine;
-}
-
-// 辅助函数: 获取文字排版描述(英文)
-function getTypographyDescEn(typography: string): string {
-  const typographyMap: Record<string, string> = {
-    glassmorphism: 'Glassmorphism - Semi-transparent background cards, soft rounded corners, strong modern feel',
-    '3d': '3D Embossed - Metallic text, light/shadow 3D effect, strong luxury feel',
-    handwritten: 'Handwritten - Watercolor brush strokes, irregular layout, strong artistic feel',
-    serif: 'Bold Serif - Thin line decoration, grid alignment, strong magazine feel',
-    'sans-serif': 'Bold Sans-serif - Neon stroke, glow effect, strong cyber feel',
-    thin: 'Thin Sans-serif - Large whitespace, precise alignment, strong minimalist feel',
-  };
-  return typographyMap[typography] || typographyMap.glassmorphism;
-}
-
-// 辅助函数: 获取中英文排版格式描述(英文)
-function getTextLayoutDescEn(layout: string): string {
-  const layoutMap: Record<string, string> = {
-    stacked: 'Chinese-English stacked vertically - Chinese on top (larger font), English below (smaller font), centered alignment',
-    parallel: 'Chinese-English side-by-side - Separated by vertical line or slash, same font size or Chinese slightly larger',
-    separated: 'Chinese-English separated - Chinese in top-left corner, English in bottom-right corner, creating visual contrast',
-  };
-  return layoutMap[layout] || layoutMap.stacked;
-}
+结论：当前生图实际使用 `poster.promptEn + poster.negative`，不是 `runtimePromptEn/runtimeNegative`。
