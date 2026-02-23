@@ -187,6 +187,15 @@ export default function GeneratePage() {
           id: poster.id,
           url: finalUrl,
           status: 'completed',
+          activeVersionId: 'v1',
+          versions: [
+            {
+              id: 'v1',
+              url: finalUrl,
+              source: 'initial',
+              createdAt: Date.now(),
+            },
+          ],
         });
       } catch (error) {
         console.error(`生成海报 ${poster.id} 失败:`, error);

@@ -92,13 +92,14 @@ export default function PromptsPage() {
   );
 
   const [selectedIndex, setSelectedIndex] = useState(initialSelection.firstIndex);
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<'zh' | 'en' | null>(null);
   const [selectionMode, setSelectionMode] = useState<PosterSelectionMode>(
     initialSelection.mode
   );
   const [localSelectedPosterIds, setLocalSelectedPosterIds] = useState<string[]>(
     initialSelection.ids
   );
+  const [editablePromptEnById, setEditablePromptEnById] = useState<Record<string, string>>({});
 
   const selectedPosterIdsForOutput = useMemo(() => {
     if (selectionMode === 'all') return allPosterIds;
@@ -126,10 +127,29 @@ export default function PromptsPage() {
 
   const safeSelectedIndex = Math.min(selectedIndex, prompts.posters.length - 1);
   const currentPrompt = prompts.posters[safeSelectedIndex];
-  const handleCopy = () => {
-    navigator.clipboard.writeText(currentPrompt.promptZh);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const currentPromptEn = editablePromptEnById[currentPrompt.id] ?? currentPrompt.promptEn;
+
+  const handleCopy = (text: string, field: 'zh' | 'en') => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => {
+      setCopiedField((prev) => (prev === field ? null : prev));
+    }, 2000);
+  };
+
+  const handlePromptEnChange = (value: string) => {
+    setEditablePromptEnById((prev) => ({
+      ...prev,
+      [currentPrompt.id]: value,
+    }));
+  };
+
+  const handleResetPromptEn = () => {
+    setEditablePromptEnById((prev) => {
+      const next = { ...prev };
+      delete next[currentPrompt.id];
+      return next;
+    });
   };
 
   const setMode = (mode: PosterSelectionMode) => {
@@ -183,6 +203,21 @@ export default function PromptsPage() {
       selectionMode === 'all' ? allPosterIds : localSelectedPosterIds;
     if (idsToGenerate.length === 0) return;
 
+    const promptsForGeneration = {
+      ...prompts,
+      posters: prompts.posters.map((poster) => {
+        const editedPrompt = editablePromptEnById[poster.id];
+        const effectivePrompt =
+          typeof editedPrompt === 'string' && editedPrompt.trim().length > 0
+            ? editedPrompt
+            : poster.promptEn;
+        return {
+          ...poster,
+          promptEn: effectivePrompt,
+        };
+      }),
+    };
+    setGeneratedPrompts(promptsForGeneration);
     setSelectedPosterIds(selectionMode === 'all' ? null : idsToGenerate);
     router.push('/generate');
   };
@@ -289,9 +324,27 @@ export default function PromptsPage() {
             </h3>
             <p className="text-sm text-muted-foreground">{currentPrompt.titleEn}</p>
           </div>
-          <Button variant="outline" onClick={handleCopy}>
-            {copied ? '✓ 已复制' : '复制中文提示词'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleCopy(currentPrompt.promptZh, 'zh')}
+            >
+              {copiedField === 'zh' ? '✓ 已复制中文' : '复制中文提示词'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleCopy(currentPromptEn, 'en')}
+            >
+              {copiedField === 'en' ? '✓ 已复制英文' : '复制英文 Prompt'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleResetPromptEn}
+              disabled={currentPromptEn === currentPrompt.promptEn}
+            >
+              恢复英文模板
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -303,10 +356,16 @@ export default function PromptsPage() {
           </div>
 
           <div>
-            <h4 className="mb-2 font-semibold">英文 Prompt</h4>
-            <div className="glass-scrollbar max-h-72 overflow-y-auto rounded-xl border border-border/70 bg-secondary/40 p-4 text-sm whitespace-pre-wrap">
-              {currentPrompt.promptEn}
-            </div>
+            <h4 className="mb-2 font-semibold">英文 Prompt（可编辑）</h4>
+            <textarea
+              value={currentPromptEn}
+              onChange={(event) => handlePromptEnChange(event.target.value)}
+              rows={14}
+              className="glass-scrollbar w-full rounded-xl border border-border/70 bg-secondary/40 p-4 text-sm leading-6 outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/40"
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              这里的英文 Prompt 会直接用于实际生成；可针对单张海报定向优化。
+            </p>
           </div>
 
           <div>

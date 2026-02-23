@@ -108,6 +108,16 @@ export interface GeneratedPoster {
   status: 'completed' | 'failed';
   rawUrl?: string;
   overlayApplied?: boolean;
+  versions?: GeneratedPosterVersion[];
+  activeVersionId?: string;
+}
+
+export interface GeneratedPosterVersion {
+  id: string;
+  url: string;
+  source: 'initial' | 'refine';
+  note?: string;
+  createdAt: number;
 }
 
 interface AppState {
