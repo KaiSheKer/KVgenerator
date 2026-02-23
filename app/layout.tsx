@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppProvider } from "@/contexts/AppContext";
 import { ErrorBoundary } from "@/lib/errors/errorBoundary";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -48,6 +49,7 @@ export default function RootLayout({
             <Toaster />
           </AppProvider>
         </ErrorBoundary>
+        <Analytics />
       </body>
     </html>
   );
