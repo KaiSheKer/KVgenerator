@@ -114,7 +114,7 @@ ${textLayoutDesc}
 - LOGO位置: 左上角,使用品牌名称 ${brandName.zh}
 - 主标题: 使用产品名称,大字号,居中或视觉焦点
 - 副标题: 展示核心卖点,使用 ${textLayout === 'stacked' ? '上下堆叠' : textLayout === 'parallel' ? '斜杠分隔' : '分离布局'}格式
-- CTA按钮: 底部居中,"立即购买" / "Shop Now"
+
 
 **整体风格**:
 ${designStyle},适合${targetAudience},品牌调性${brandTone}`,
@@ -149,7 +149,6 @@ ${getTextLayoutDescEn(textLayout)}
 - Logo position: Top left, use brand name ${brandName.en}
 - Main title: Use product name, large font size, centered or visual focal point
 - Subtitle: Display key selling points, use ${textLayout === 'stacked' ? 'stacked vertical layout' : textLayout === 'parallel' ? 'side-by-side with separator' : 'separated layout'} format
-- CTA button: Bottom center, "立即购买" / "Shop Now"
 
 **Overall Style**:
 ${designStyle}, suitable for ${targetAudience}, brand tone ${brandTone}`,
@@ -399,6 +398,7 @@ Display parts showing product use or operation.
 - 温暖色调,营造亲和力
 - 自然场景,真实感受
 - 柔和光线,舒适氛围
+- 场景简单,重点突出
 
 **文字内容**:
 - 主标题: "${normalizedSellingPoints[4]?.zh || '用户之选'}" / "${normalizedSellingPoints[4]?.en || 'User Choice'}"
@@ -706,7 +706,7 @@ function buildRuntimePromptEn(args: {
     `PRODUCT FACTS: Brand ${brandName.en || brandName.zh}; Category ${productType.category}; Product ${productType.specific}; Specs ${specifications || 'N/A'}. Key points: ${normalizedSellingPoints.map((point) => point.en).join(' / ')}.`,
     `SHOT BLUEPRINT: ${blueprint.shotBlueprint} Aspect ratio ${aspectRatio} ${aspectRatioOrientationEn}. Reserve clean negative-space zones for post-process typography, but render no added poster copy.`,
     `STYLE GRAMMAR: ${styleGrammar}. Palette focus: primary ${joinOrFallback(colorScheme.primary, '#5F77FF')}; secondary ${joinOrFallback(colorScheme.secondary, '#AAB7FF')}; accent ${joinOrFallback(colorScheme.accent, '#C248FF')}. Design tone: ${designStyle || 'premium e-commerce'}; brand tone: ${brandTone || 'confident and clean'}.`,
-    `TEXT POLICY: ${blueprint.textPolicy} Strict rule: no generated headline text, no subtitle text, no slogan text, no CTA button text on canvas. Keep only product-native package printing from reference image.`,
+    `TEXT POLICY: ${blueprint.textPolicy} Strict rule: no generated headline text, no subtitle text, no slogan text, no promotional button text on canvas. Keep only product-native package printing from reference image.`,
     `QUALITY TARGET: Commercial ad quality, sharp edges, clear package front, balanced lighting, no subject crop, no distracting clutter.`,
     `OUTPUT CONSTRAINTS: Single package only, no second brand, no wrong symbols, no fake label text, no chaotic background, no poster typography overlays. ${compactSpecLines ? `Specs cue: ${compactSpecLines}.` : ''}`,
   ].join('\n\n');
@@ -760,7 +760,7 @@ function getPosterRuntimeBlueprint(
     '02': {
       task: 'Create lifestyle scene while keeping product package as main subject.',
       shotBlueprint: 'Product in foreground, lifestyle context in mid/background, natural lighting, no subject occlusion',
-      textPolicy: 'Reserve a readable top-left text-safe area and bottom CTA-safe strip for post-process overlay.',
+      textPolicy: 'Reserve a readable top-left text-safe area and bottom safe strip for post-process overlay.',
     },
     '03': {
       task: 'Visualize process or concept for one key product advantage.',
@@ -850,7 +850,7 @@ function buildGlobalRuntimeNegative(): string[] {
     'marketing slogan overlay',
     'random typography blocks',
     'subtitle banners',
-    'cta button text overlay',
+    'button text overlay',
     'title typography on background',
     'promotional copy text',
     'large centered headline text',
@@ -879,8 +879,6 @@ function buildOverlaySpecForPoster(args: {
       subtitleZh: '严选品质，真实可见',
       subtitleEn: 'Premium quality, clearly presented',
       bullets: normalizedSellingPoints.slice(0, 3),
-      ctaZh: '立即选购',
-      ctaEn: 'SHOP NOW',
       logoText: brandName.zh || brandName.en,
       palette,
     };
@@ -894,8 +892,6 @@ function buildOverlaySpecForPoster(args: {
       subtitleZh: normalizedSellingPoints[0]?.zh || '日常使用更放心',
       subtitleEn: normalizedSellingPoints[0]?.en || 'Built for everyday use',
       bullets: normalizedSellingPoints.slice(1, 3),
-      ctaZh: '了解更多',
-      ctaEn: 'LEARN MORE',
       logoText: brandName.zh || brandName.en,
       palette,
     };
@@ -935,8 +931,6 @@ function buildOverlaySpecForPoster(args: {
       subtitleZh: '关键信息一目了然',
       subtitleEn: 'Key details at a glance',
       bullets: specBullets,
-      ctaZh: '查看详情',
-      ctaEn: 'VIEW DETAILS',
       logoText: brandName.zh || brandName.en,
       palette,
     };

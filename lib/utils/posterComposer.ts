@@ -145,15 +145,18 @@ function drawHeroLayout(
     drawBullets(ctx, x, y, width * 0.82, spec.bullets, palette.textOnDark, width);
   }
 
-  drawCta(
-    ctx,
-    width * 0.06,
-    height * 0.88,
-    width * 0.42,
-    height * 0.055,
-    `${spec.ctaZh || '立即选购'}  ${spec.ctaEn || 'SHOP NOW'}`,
-    palette
-  );
+  const ctaText = [spec.ctaZh, spec.ctaEn].filter(Boolean).join('  ').trim();
+  if (ctaText) {
+    drawCta(
+      ctx,
+      width * 0.06,
+      height * 0.88,
+      width * 0.42,
+      height * 0.055,
+      ctaText,
+      palette
+    );
+  }
 }
 
 function drawLifestyleLayout(
@@ -180,15 +183,18 @@ function drawLifestyleLayout(
     y += height * 0.025;
     drawBullets(ctx, x, y, width * 0.78, spec.bullets, palette.textOnDark, width);
   }
-  drawCta(
-    ctx,
-    width * 0.06,
-    height * 0.88,
-    width * 0.4,
-    height * 0.052,
-    `${spec.ctaZh || '了解更多'}  ${spec.ctaEn || 'LEARN MORE'}`,
-    palette
-  );
+  const ctaText = [spec.ctaZh, spec.ctaEn].filter(Boolean).join('  ').trim();
+  if (ctaText) {
+    drawCta(
+      ctx,
+      width * 0.06,
+      height * 0.88,
+      width * 0.4,
+      height * 0.052,
+      ctaText,
+      palette
+    );
+  }
 }
 
 function drawSpecsLayout(
@@ -215,15 +221,18 @@ function drawSpecsLayout(
     drawBullets(ctx, titleX, y, panelW * 0.86, spec.bullets, palette.textOnDark, width);
   }
 
-  drawCta(
-    ctx,
-    panelX + panelW * 0.06,
-    panelY + panelH * 0.84,
-    panelW * 0.4,
-    height * 0.048,
-    `${spec.ctaZh || '查看详情'}  ${spec.ctaEn || 'VIEW DETAILS'}`,
-    palette
-  );
+  const ctaText = [spec.ctaZh, spec.ctaEn].filter(Boolean).join('  ').trim();
+  if (ctaText) {
+    drawCta(
+      ctx,
+      panelX + panelW * 0.06,
+      panelY + panelH * 0.84,
+      panelW * 0.4,
+      height * 0.048,
+      ctaText,
+      palette
+    );
+  }
 }
 
 function drawGenericLayout(
@@ -250,15 +259,18 @@ function drawGenericLayout(
     y += height * 0.02;
     drawBullets(ctx, x, y, width * 0.8, spec.bullets, palette.textOnDark, width);
   }
-  drawCta(
-    ctx,
-    width * 0.06,
-    height * 0.88,
-    width * 0.34,
-    height * 0.05,
-    `${spec.ctaZh || '立即了解'}  ${spec.ctaEn || 'EXPLORE'}`,
-    palette
-  );
+  const ctaText = [spec.ctaZh, spec.ctaEn].filter(Boolean).join('  ').trim();
+  if (ctaText) {
+    drawCta(
+      ctx,
+      width * 0.06,
+      height * 0.88,
+      width * 0.34,
+      height * 0.05,
+      ctaText,
+      palette
+    );
+  }
 }
 
 function drawTitleStack(
