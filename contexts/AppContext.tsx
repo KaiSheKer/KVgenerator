@@ -56,6 +56,9 @@ export type PosterAspectRatio =
   | '21:9';
 
 export type GenerationQualityMode = 'fast' | 'balanced' | 'quality';
+export type GenerationPipelineMode =
+  | 'legacy_ai_text'
+  | 'one_pass_layout';
 
 export interface StyleConfig {
   visual: string;
@@ -108,6 +111,9 @@ export interface GeneratedPoster {
   status: 'completed' | 'failed';
   rawUrl?: string;
   overlayApplied?: boolean;
+  generationMode?: GenerationPipelineMode;
+  promptSource?: string;
+  negativeSource?: string;
   versions?: GeneratedPosterVersion[];
   activeVersionId?: string;
 }
@@ -128,6 +134,7 @@ interface AppState {
   selectedStyle: StyleConfig | null;
   selectedPosterIds: string[] | null;
   selectedQualityMode: GenerationQualityMode;
+  selectedGenerationMode: GenerationPipelineMode;
   generatedPrompts: PromptsSystem | null;
   generatedPosters: GeneratedPoster[] | null;
   isLoading: boolean;
@@ -142,6 +149,7 @@ interface AppActions {
   setSelectedStyle: (style: StyleConfig) => void;
   setSelectedPosterIds: (ids: string[] | null) => void;
   setSelectedQualityMode: (mode: GenerationQualityMode) => void;
+  setSelectedGenerationMode: (mode: GenerationPipelineMode) => void;
   setGeneratedPrompts: (prompts: PromptsSystem) => void;
   setGeneratedPosters: (posters: GeneratedPoster[]) => void;
   setLoading: (loading: boolean) => void;
@@ -157,6 +165,7 @@ const initialState: AppState = {
   selectedStyle: null,
   selectedPosterIds: null,
   selectedQualityMode: 'quality',
+  selectedGenerationMode: 'one_pass_layout',
   generatedPrompts: null,
   generatedPosters: null,
   isLoading: false,
@@ -203,6 +212,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, selectedQualityMode: mode }));
   }, []);
 
+  const setSelectedGenerationMode = useCallback((mode: GenerationPipelineMode) => {
+    setState((prev) => ({ ...prev, selectedGenerationMode: mode }));
+  }, []);
+
   const setGeneratedPrompts = useCallback((prompts: PromptsSystem) => {
     setState((prev) => ({ ...prev, generatedPrompts: prompts }));
   }, []);
@@ -231,6 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedStyle,
     setSelectedPosterIds,
     setSelectedQualityMode,
+    setSelectedGenerationMode,
     setGeneratedPrompts,
     setGeneratedPosters,
     setLoading,
@@ -244,6 +258,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedStyle,
     setSelectedPosterIds,
     setSelectedQualityMode,
+    setSelectedGenerationMode,
     setGeneratedPrompts,
     setGeneratedPosters,
     setLoading,

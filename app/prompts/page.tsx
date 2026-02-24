@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { generatePrompts } from '@/lib/utils/promptGenerator';
 import { cn } from '@/lib/utils';
-import type { GenerationQualityMode } from '@/contexts/AppContext';
+import type {
+  GenerationPipelineMode,
+  GenerationQualityMode,
+} from '@/contexts/AppContext';
 
 type PosterSelectionMode = 'single' | 'multi' | 'all';
 
@@ -31,6 +34,25 @@ const QUALITY_MODE_OPTIONS: Array<{
   { value: 'balanced', label: '平衡', description: '每张生成 2 个候选，效果与速度平衡', candidates: 2 },
   { value: 'quality', label: '精品', description: '每张生成 3 个候选，默认演示推荐', candidates: 3 },
 ];
+
+const GENERATION_MODE_OPTIONS: Array<{
+  value: GenerationPipelineMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'legacy_ai_text',
+    label: 'AI原生出字',
+    description: '直接让模型生成文案与画面，作为历史基线',
+  },
+  {
+    value: 'one_pass_layout',
+    label: '一步成图（推荐）',
+    description: '将视觉、文案、布局一次交给模型直接生成成品图',
+  },
+];
+
+const QUICK_VALIDATE_POSTER_IDS = ['01', '04', '09'];
 
 function resolveSelectionState(
   posterIds: string[],
@@ -71,9 +93,11 @@ export default function PromptsPage() {
     selectedStyle,
     selectedPosterIds,
     selectedQualityMode,
+    selectedGenerationMode,
     setGeneratedPrompts,
     setSelectedPosterIds,
     setSelectedQualityMode,
+    setSelectedGenerationMode,
   } = useAppContext();
 
   const prompts = useMemo(() => {
@@ -109,6 +133,12 @@ export default function PromptsPage() {
     () => QUALITY_MODE_OPTIONS.find((item) => item.value === selectedQualityMode) ?? QUALITY_MODE_OPTIONS[2],
     [selectedQualityMode]
   );
+  const generationModeMeta = useMemo(
+    () =>
+      GENERATION_MODE_OPTIONS.find((item) => item.value === selectedGenerationMode) ??
+      GENERATION_MODE_OPTIONS[0],
+    [selectedGenerationMode]
+  );
 
   useEffect(() => {
     if (!editedProductInfo || !selectedStyle) {
@@ -127,7 +157,15 @@ export default function PromptsPage() {
 
   const safeSelectedIndex = Math.min(selectedIndex, prompts.posters.length - 1);
   const currentPrompt = prompts.posters[safeSelectedIndex];
-  const currentPromptEn = editablePromptEnById[currentPrompt.id] ?? currentPrompt.promptEn;
+  const currentPromptBaseEn =
+    selectedGenerationMode === 'legacy_ai_text'
+      ? currentPrompt.promptEn
+      : currentPrompt.runtimePromptEn || currentPrompt.promptEn;
+  const currentPromptEn = editablePromptEnById[currentPrompt.id] ?? currentPromptBaseEn;
+  const currentNegative =
+    selectedGenerationMode === 'legacy_ai_text'
+      ? currentPrompt.negative
+      : currentPrompt.runtimeNegative || currentPrompt.negative;
 
   const handleCopy = (text: string, field: 'zh' | 'en') => {
     navigator.clipboard.writeText(text);
@@ -173,6 +211,20 @@ export default function PromptsPage() {
     }
   };
 
+  const applyQuickValidationPreset = () => {
+    const presetIds = QUICK_VALIDATE_POSTER_IDS.filter((id) =>
+      allPosterIds.includes(id)
+    );
+    if (presetIds.length === 0) return;
+
+    setSelectionMode('multi');
+    setLocalSelectedPosterIds(presetIds);
+    const firstPresetIndex = prompts.posters.findIndex(
+      (poster) => poster.id === presetIds[0]
+    );
+    setSelectedIndex(firstPresetIndex >= 0 ? firstPresetIndex : 0);
+  };
+
   const togglePosterSelection = (posterId: string, index: number) => {
     setSelectedIndex(index);
     if (selectionMode === 'all') return;
@@ -207,13 +259,19 @@ export default function PromptsPage() {
       ...prompts,
       posters: prompts.posters.map((poster) => {
         const editedPrompt = editablePromptEnById[poster.id];
+        const basePrompt =
+          selectedGenerationMode === 'legacy_ai_text'
+            ? poster.promptEn
+            : poster.runtimePromptEn || poster.promptEn;
         const effectivePrompt =
           typeof editedPrompt === 'string' && editedPrompt.trim().length > 0
             ? editedPrompt
-            : poster.promptEn;
+            : basePrompt;
         return {
           ...poster,
-          promptEn: effectivePrompt,
+          ...(selectedGenerationMode === 'legacy_ai_text'
+            ? { promptEn: effectivePrompt }
+            : { runtimePromptEn: effectivePrompt }),
         };
       }),
     };
@@ -229,7 +287,7 @@ export default function PromptsPage() {
           ← 上一步
         </Button>
         <Button size="lg" onClick={handleGenerate}>
-          开始生成海报 ({selectedPosterIdsForOutput.length}张 · {qualityModeMeta.label}) →
+          开始生成海报 ({selectedPosterIdsForOutput.length}张 · {qualityModeMeta.label} · {generationModeMeta.label}) →
         </Button>
       </div>
 
@@ -287,8 +345,42 @@ export default function PromptsPage() {
 
       <Card className="studio-panel p-4">
         <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold tracking-wide">生成链路模式</h3>
+          <span className="text-xs text-muted-foreground">当前: {generationModeMeta.label}</span>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {GENERATION_MODE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              className={cn(
+                'rounded-xl border px-4 py-3 text-left transition-all duration-200',
+                selectedGenerationMode === option.value
+                  ? 'border-primary/80 bg-gradient-to-r from-primary to-accent text-white shadow-[0_10px_24px_rgba(70,92,255,0.35)]'
+                  : 'border-border/70 bg-secondary/55 text-muted-foreground hover:border-primary/45 hover:text-foreground'
+              )}
+              onClick={() => setSelectedGenerationMode(option.value)}
+            >
+              <div className="text-sm font-semibold">{option.label}</div>
+              <div className="text-xs opacity-90">{option.description}</div>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="studio-panel p-4">
+        <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold tracking-wide">海报类型选择</h3>
-          <span className="text-xs text-muted-foreground">{safeSelectedIndex + 1}/{prompts.posters.length}</span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={applyQuickValidationPreset}
+              className="h-7 px-2 text-[11px]"
+            >
+              快速预设 01/04/09
+            </Button>
+            <span className="text-xs text-muted-foreground">{safeSelectedIndex + 1}/{prompts.posters.length}</span>
+          </div>
         </div>
         <div className="glass-scrollbar flex gap-2 overflow-x-auto pb-1">
           {prompts.posters.map((poster, index) => (
@@ -340,7 +432,7 @@ export default function PromptsPage() {
             <Button
               variant="outline"
               onClick={handleResetPromptEn}
-              disabled={currentPromptEn === currentPrompt.promptEn}
+              disabled={currentPromptEn === currentPromptBaseEn}
             >
               恢复英文模板
             </Button>
@@ -364,14 +456,16 @@ export default function PromptsPage() {
               className="glass-scrollbar w-full rounded-xl border border-border/70 bg-secondary/40 p-4 text-sm leading-6 outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/40"
             />
             <p className="mt-2 text-xs text-muted-foreground">
-              这里的英文 Prompt 会直接用于实际生成；可针对单张海报定向优化。
+              {selectedGenerationMode === 'legacy_ai_text'
+                ? '当前模式直接使用英文 Prompt 生成；可针对单张海报定向优化。'
+                : '当前模式使用“一步成图 Prompt”生成；此处编辑会直接影响最终成图。'}
             </p>
           </div>
 
           <div>
             <h4 className="mb-2 font-semibold">负面词</h4>
             <div className="glass-scrollbar max-h-36 overflow-y-auto rounded-xl border border-border/70 bg-secondary/40 p-4 text-sm whitespace-pre-wrap">
-              {currentPrompt.negative}
+              {currentNegative}
             </div>
           </div>
         </div>

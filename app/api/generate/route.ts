@@ -9,6 +9,7 @@ interface GenerationRequest {
   width?: number;
   height?: number;
   referenceImage?: string;
+  enforceNoText?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
       width: body.width,
       height: body.height,
       referenceImage: body.referenceImage,
+      enforceNoText: body.enforceNoText,
     });
 
     return NextResponse.json({ dataUrl });

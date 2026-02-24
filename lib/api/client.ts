@@ -6,6 +6,7 @@ interface GenerationRequest {
   width?: number;
   height?: number;
   referenceImage?: string;
+  enforceNoText?: boolean;
 }
 
 export async function analyzeProduct(imageBase64: string): Promise<AnalysisResponse> {

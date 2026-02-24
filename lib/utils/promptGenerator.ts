@@ -624,23 +624,28 @@ Show how to use ${productType.specific}
     ),
   }));
 
-  const postersWithRuntime = postersWithAspectRatio.map((poster) => ({
-    ...poster,
-    runtimePromptEn: buildRuntimePromptEn({
-      poster,
-      productInfo,
-      style,
-      aspectRatio,
-      aspectRatioOrientationEn,
-      normalizedSellingPoints,
-    }),
-    runtimeNegative: buildRuntimeNegativeByType(poster.type),
-    overlaySpec: buildOverlaySpecForPoster({
+  const postersWithRuntime = postersWithAspectRatio.map((poster) => {
+    const overlaySpec = buildOverlaySpecForPoster({
       poster,
       productInfo,
       normalizedSellingPoints,
-    }),
-  }));
+    });
+
+    return {
+      ...poster,
+      runtimePromptEn: buildRuntimePromptEn({
+        poster,
+        productInfo,
+        style,
+        aspectRatio,
+        aspectRatioOrientationEn,
+        normalizedSellingPoints,
+        overlaySpec,
+      }),
+      runtimeNegative: buildRuntimeNegativeByType(poster.type),
+      overlaySpec,
+    };
+  });
 
   return {
     logo: brandName.zh,
@@ -689,36 +694,50 @@ function buildRuntimePromptEn(args: {
   aspectRatio: string;
   aspectRatioOrientationEn: string;
   normalizedSellingPoints: Array<{ zh: string; en: string }>;
+  overlaySpec?: PosterOverlaySpec;
 }): string {
-  const { poster, productInfo, style, aspectRatio, aspectRatioOrientationEn, normalizedSellingPoints } = args;
+  const {
+    poster,
+    productInfo,
+    style,
+    aspectRatio,
+    aspectRatioOrientationEn,
+    normalizedSellingPoints,
+    overlaySpec,
+  } = args;
   const { brandName, productType, specifications, colorScheme, parameters, designStyle, brandTone } = productInfo;
-  const styleGrammar = buildStyleGrammar(style.visual, style.typography, style.textLayout);
+  const styleGrammar = buildRuntimeVisualGrammar(style.visual);
+  const typographyGrammar = buildOnePassTypographyGrammar(style.typography, style.textLayout);
   const blueprint = getPosterRuntimeBlueprint(poster.id, poster.type);
+  const keyPoints = normalizedSellingPoints
+    .map((point) => point.en)
+    .filter((value) => Boolean(value && value.trim()))
+    .slice(0, 2)
+    .join(' / ');
   const compactSpecLines = Object.entries(parameters)
     .filter(([, value]) => Boolean(value))
-    .slice(0, 4)
+    .slice(0, 2)
     .map(([key, value]) => `${mapParameterKeyEn(key)}: ${value}`)
     .join(' | ');
+  const copyPack = buildOnePassCopyPack(overlaySpec, poster);
 
   return [
     `TASK: ${blueprint.task}`,
     `REFERENCE LOCK: Use uploaded product image as single source of truth. Keep package silhouette, logo spelling/placement, color palette, icon positions, and label hierarchy unchanged. Do not redesign brand elements.`,
-    `PRODUCT FACTS: Brand ${brandName.en || brandName.zh}; Category ${productType.category}; Product ${productType.specific}; Specs ${specifications || 'N/A'}. Key points: ${normalizedSellingPoints.map((point) => point.en).join(' / ')}.`,
-    `SHOT BLUEPRINT: ${blueprint.shotBlueprint} Aspect ratio ${aspectRatio} ${aspectRatioOrientationEn}. Reserve clean negative-space zones for post-process typography, but render no added poster copy.`,
-    `STYLE GRAMMAR: ${styleGrammar}. Palette focus: primary ${joinOrFallback(colorScheme.primary, '#5F77FF')}; secondary ${joinOrFallback(colorScheme.secondary, '#AAB7FF')}; accent ${joinOrFallback(colorScheme.accent, '#C248FF')}. Design tone: ${designStyle || 'premium e-commerce'}; brand tone: ${brandTone || 'confident and clean'}.`,
-    `TEXT POLICY: ${blueprint.textPolicy} Strict rule: no generated headline text, no subtitle text, no slogan text, no promotional button text on canvas. Keep only product-native package printing from reference image.`,
+    `PRODUCT FACTS: Brand ${brandName.en || brandName.zh}; Category ${productType.category}; Product ${productType.specific}; Specs ${specifications || 'N/A'}.${keyPoints ? ` Key points: ${keyPoints}.` : ''}`,
+    `SHOT BLUEPRINT: ${blueprint.shotBlueprint} Aspect ratio ${aspectRatio} ${aspectRatioOrientationEn}.`,
+    `STYLE GRAMMAR: ${styleGrammar}. Typography grammar: ${typographyGrammar}. Palette focus: primary ${joinOrFallback(colorScheme.primary, '#5F77FF')}; secondary ${joinOrFallback(colorScheme.secondary, '#AAB7FF')}; accent ${joinOrFallback(colorScheme.accent, '#C248FF')}. Design tone: ${designStyle || 'premium e-commerce'}; brand tone: ${brandTone || 'confident and clean'}.`,
+    `COPY TO RENDER (render exactly, no rewrite):\n${copyPack}`,
+    `TEXT LAYOUT POLICY: ${blueprint.textPolicy} Keep all copy clear, complete, and readable. Preserve language, punctuation, line hierarchy, and brand naming.`,
+    `TEXT ACCURACY: No gibberish, no random characters, no misspelling, no truncated words, no duplicated letters, no mirrored text, no unrelated logos or watermarks.`,
     `QUALITY TARGET: Commercial ad quality, sharp edges, clear package front, balanced lighting, no subject crop, no distracting clutter.`,
-    `OUTPUT CONSTRAINTS: Single package only, no second brand, no wrong symbols, no fake label text, no chaotic background, no poster typography overlays. ${compactSpecLines ? `Specs cue: ${compactSpecLines}.` : ''}`,
+    `OUTPUT CONSTRAINTS: Single package only, no second brand, no wrong symbols, no fake label text, no chaotic background, no unreadable typography. ${compactSpecLines ? `Specs cue: ${compactSpecLines}.` : ''}`,
   ].join('\n\n');
 }
 
-function buildStyleGrammar(
-  visual: string,
-  typography: string,
-  textLayout: StyleConfig['textLayout']
-): string {
+function buildRuntimeVisualGrammar(visual: string): string {
   const visualGrammar: Record<string, string> = {
-    magazine: 'editorial composition, premium whitespace, strong title hierarchy',
+    magazine: 'editorial composition, premium whitespace, clean premium framing',
     watercolor: 'soft gradients, hand-painted wash texture, warm artistic atmosphere',
     tech: 'clean geometry, cool highlights, controlled futuristic accents',
     vintage: 'film grain touch, warm tonality, nostalgic contrast control',
@@ -726,25 +745,57 @@ function buildStyleGrammar(
     cyber: 'neon edge accents, dark contrast base, crisp glow highlights',
     organic: 'natural fibers, earth-tone layers, gentle handcrafted detail',
   };
+  return visualGrammar[visual] || visualGrammar.magazine;
+}
+
+function buildOnePassTypographyGrammar(
+  typography: string,
+  textLayout: StyleConfig['textLayout']
+): string {
   const typographyGrammar: Record<string, string> = {
-    glassmorphism: 'glass card overlays, soft radius, translucent panels',
-    '3d': 'embossed metallic title treatment, depth-controlled highlights',
-    handwritten: 'handwritten callout accents, organic stroke rhythm',
-    serif: 'bold serif display title with fine divider lines',
-    'sans-serif': 'bold sans display, strong readability, modern contrast',
-    thin: 'thin sans typography, restrained spacing, minimalist rhythm',
+    glassmorphism: 'soft translucent cards, rounded corners, clean modern hierarchy',
+    '3d': 'bold display headline, subtle depth, metallic highlight accents',
+    handwritten: 'handwritten accent strokes for subtitles, controlled irregular rhythm',
+    serif: 'high-contrast serif headline, editorial hierarchy, premium spacing',
+    'sans-serif': 'bold sans headline, crisp contrast, high readability',
+    thin: 'lightweight sans titles with large whitespace and precise alignment',
   };
   const layoutGrammar: Record<StyleConfig['textLayout'], string> = {
-    stacked: 'bilingual stacked layout: Chinese above English',
-    parallel: 'bilingual parallel layout with clean separators',
-    separated: 'bilingual separated anchors with visual balance',
+    stacked: 'bilingual stacked layout: Chinese headline first, English support line below',
+    parallel: 'bilingual parallel layout: Chinese and English side-by-side with clear divider',
+    separated: 'bilingual separated layout: Chinese in primary area, English in secondary anchor',
   };
+  return `${typographyGrammar[typography] || typographyGrammar.glassmorphism}; ${layoutGrammar[textLayout]}`;
+}
 
-  return [
-    visualGrammar[visual] || visualGrammar.magazine,
-    typographyGrammar[typography] || typographyGrammar.glassmorphism,
-    layoutGrammar[textLayout],
-  ].join('; ');
+function buildOnePassCopyPack(
+  overlaySpec: PosterOverlaySpec | undefined,
+  poster: PosterPrompt
+): string {
+  if (!overlaySpec) {
+    return [
+      `- headline_zh: ${poster.title}`,
+      `- headline_en: ${poster.titleEn}`,
+      `- subtitle_zh: 品质之选`,
+    ].join('\n');
+  }
+
+  const lines: string[] = [];
+  if (overlaySpec.logoText) lines.push(`- logo_text: ${overlaySpec.logoText}`);
+  if (overlaySpec.titleZh) lines.push(`- headline_zh: ${overlaySpec.titleZh}`);
+  if (overlaySpec.titleEn) lines.push(`- headline_en: ${overlaySpec.titleEn}`);
+  if (overlaySpec.subtitleZh) lines.push(`- subtitle_zh: ${overlaySpec.subtitleZh}`);
+  if (overlaySpec.subtitleEn) lines.push(`- subtitle_en: ${overlaySpec.subtitleEn}`);
+
+  (overlaySpec.bullets || []).slice(0, 3).forEach((bullet, idx) => {
+    if (bullet.zh) lines.push(`- bullet_${idx + 1}_zh: ${bullet.zh}`);
+    if (bullet.en) lines.push(`- bullet_${idx + 1}_en: ${bullet.en}`);
+  });
+
+  if (overlaySpec.ctaZh) lines.push(`- cta_zh: ${overlaySpec.ctaZh}`);
+  if (overlaySpec.ctaEn) lines.push(`- cta_en: ${overlaySpec.ctaEn}`);
+
+  return lines.join('\n');
 }
 
 function getPosterRuntimeBlueprint(
@@ -753,54 +804,54 @@ function getPosterRuntimeBlueprint(
 ): { task: string; shotBlueprint: string; textPolicy: string } {
   const mapById: Record<string, { task: string; shotBlueprint: string; textPolicy: string }> = {
     '01': {
-      task: 'Create hero KV visual focused on product package fidelity.',
-      shotBlueprint: 'Package front view dominant (55-65% frame), clean gradient backdrop, center-weighted composition',
-      textPolicy: `Reserve clean typography-safe zones (top 18%, bottom 14%) for post-process copy. Keep center area uncluttered.`,
+      task: 'Create final hero KV poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Package front view dominant (50-62% frame), headline in upper free area, supporting bullets below headline, CTA near lower-third with clear margin',
+      textPolicy: 'Use strong headline hierarchy, keep text blocks aligned and balanced against product silhouette.',
     },
     '02': {
-      task: 'Create lifestyle scene while keeping product package as main subject.',
-      shotBlueprint: 'Product in foreground, lifestyle context in mid/background, natural lighting, no subject occlusion',
-      textPolicy: 'Reserve a readable top-left text-safe area and bottom safe strip for post-process overlay.',
+      task: 'Create final lifestyle poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Product in foreground, lifestyle context in background, text group in calm area away from product edge',
+      textPolicy: 'Keep bilingual text compact and readable; avoid placing copy on noisy texture.',
     },
     '03': {
-      task: 'Visualize process or concept for one key product advantage.',
-      shotBlueprint: 'Product anchor with 1-2 infographic cues, structured spacing, high readability',
-      textPolicy: 'Reserve compact header and side-note safe zones; keep background simple for overlay readability.',
+      task: 'Create final process/concept poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Product anchor plus supportive visual metaphor; reserve concise header and short bullet zone',
+      textPolicy: 'Keep information hierarchy: headline first, then 1-2 key bullets with even spacing.',
     },
     '04': {
-      task: 'Create detail close-up emphasizing craftsmanship.',
-      shotBlueprint: 'Macro framing, shallow depth of field, package detail area crisp and isolated',
-      textPolicy: 'Reserve a narrow top header safe area; avoid visual noise where post-process text will sit.',
+      task: 'Create final detail close-up poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Macro framing with product detail as focus; place short copy near clean negative space',
+      textPolicy: 'Text should be concise, high-contrast, and never overlap the key texture detail.',
     },
     '05': {
-      task: 'Create material-focused detail shot.',
-      shotBlueprint: 'Texture-forward framing, controlled highlights, simple background',
-      textPolicy: 'Reserve small copy-safe zone near bottom-left; keep texture detail clear but not busy.',
+      task: 'Create final material-detail poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Texture-forward composition with simple backdrop and one stable text block',
+      textPolicy: 'Maintain compact text group and avoid excessive decorative labels.',
     },
     '06': {
-      task: 'Create function-focused detail visual.',
-      shotBlueprint: 'Feature interaction angle, product still fully recognizable, clean feature emphasis',
-      textPolicy: 'Reserve two compact text-safe areas (header and lower-third) for post-process overlay.',
+      task: 'Create final function-detail poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Feature interaction angle, product recognizable, copy anchored to clear side region',
+      textPolicy: 'Prioritize legibility and spacing; keep copy as structured headline + bullets.',
     },
     '07': {
-      task: 'Create trust-oriented detail or review style poster.',
-      shotBlueprint: 'Product center with light trust badges, avoid clutter and tiny text',
-      textPolicy: 'Reserve concise trust-copy space near top; avoid dense graphical elements in overlay zones.',
+      task: 'Create final trust-detail poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Product center with trust-oriented ambience; text block should avoid tiny dense lines',
+      textPolicy: 'Use short, confident copy with clear line breaks and moderate leading.',
     },
     '08': {
-      task: 'Create brand story mood visual with package consistency.',
-      shotBlueprint: 'Product plus branded ambient elements, palette consistency prioritized',
-      textPolicy: 'Reserve brand-message safe zones top and bottom while maintaining strong mood visuals.',
+      task: 'Create final brand-story poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Product plus brand ambience, story headline in upper area, supportive line and CTA below',
+      textPolicy: 'Keep story copy poetic but concise, with clear hierarchy and alignment.',
     },
     '09': {
-      task: 'Create specification-focused poster for key product parameters.',
-      shotBlueprint: 'Split layout: product area + compact spec area, high contrast readability',
-      textPolicy: 'Reserve a clear parameter panel area for post-process spec overlay, avoid busy micro-details.',
+      task: 'Create final specification poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Product with structured spec area (upper/lower split allowed), parameter bullets aligned in clean column',
+      textPolicy: 'Render parameter text as readable short lines; keep spacing regular and consistent.',
     },
     '10': {
-      task: 'Create usage guide poster with clear step flow.',
-      shotBlueprint: 'Three-step icon flow with product anchor, directional guidance and spacing',
-      textPolicy: 'Reserve three step-caption safe zones; keep guided flow graphics simple and text-free.',
+      task: 'Create final usage-guide poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Usage scene with product anchor and concise step copy arranged from top to bottom',
+      textPolicy: 'Keep step text short, sequential, and clearly separated.',
     },
   };
 
@@ -808,9 +859,9 @@ function getPosterRuntimeBlueprint(
   const selected = mapById[posterId] || fallback;
   if (posterType === 'detail' && !mapById[posterId]) {
     return {
-      task: 'Create detail poster emphasizing product fidelity and texture.',
-      shotBlueprint: 'Detail-first framing, clean background, product features sharp',
-      textPolicy: 'Use one short title and avoid dense text.',
+      task: 'Create final detail poster in one pass (image + copy + layout).',
+      shotBlueprint: 'Detail-first framing with one stable copy block in clean background',
+      textPolicy: 'Keep copy concise and legible, with clear visual hierarchy.',
     };
   }
   return selected;
@@ -819,13 +870,13 @@ function getPosterRuntimeBlueprint(
 function buildRuntimeNegativeByType(type: PosterPrompt['type']): string {
   const globalNegatives = buildGlobalRuntimeNegative();
   const typeNegatives: Record<PosterPrompt['type'], string[]> = {
-    hero: ['busy background', 'aggressive perspective distortion', 'tilted unreadable label'],
+    hero: ['busy background', 'aggressive perspective distortion', 'cropped headline area'],
     lifestyle: ['face-dominant composition', 'product out of focus', 'scene clutter'],
-    process: ['overloaded infographic', 'tiny unreadable labels', 'confusing flow arrows'],
+    process: ['overloaded infographic', 'too many icons', 'confusing flow direction'],
     detail: ['plastic fake texture', 'excessive bloom', 'halo sharpening artifacts'],
-    brand: ['brand mismatch icons', 'palette inconsistency', 'overly abstract subject loss'],
-    specs: ['handwritten table noise', 'tiny dense text block', 'broken grid alignment'],
-    usage: ['too many steps', 'illegible icons', 'arrow direction confusion'],
+    brand: ['brand mismatch icons', 'palette inconsistency', 'subject too abstract'],
+    specs: ['tiny dense text block', 'crooked bullet alignment', 'irregular column spacing'],
+    usage: ['too many steps', 'illegible step text', 'arrow direction confusion'],
   };
   return [...globalNegatives, ...typeNegatives[type]].join(', ');
 }
@@ -843,17 +894,21 @@ function buildGlobalRuntimeNegative(): string[] {
     'blurry focus',
     'watermark',
     'random characters',
+    'gibberish text',
+    'misspelled words',
+    'broken letters',
+    'mirrored text',
+    'truncated words',
+    'duplicated words',
     'chaotic layout',
     'oversaturated neon cast',
     'muddy shadows',
-    'floating headline text',
-    'marketing slogan overlay',
-    'random typography blocks',
-    'subtitle banners',
-    'button text overlay',
-    'title typography on background',
-    'promotional copy text',
-    'large centered headline text',
+    'floating unrelated labels',
+    'inconsistent typography hierarchy',
+    'unbalanced text blocks',
+    'unrelated logo',
+    'unrelated slogan',
+    'fake UI button',
   ];
 }
 
@@ -863,13 +918,19 @@ function buildOverlaySpecForPoster(args: {
   normalizedSellingPoints: Array<{ zh: string; en: string }>;
 }): PosterOverlaySpec | undefined {
   const { poster, productInfo, normalizedSellingPoints } = args;
-  const { brandName, colorScheme, parameters } = productInfo;
+  const { brandName, colorScheme, parameters, productType } = productInfo;
+  const logoText = brandName.zh || brandName.en;
   const palette = {
     primary: colorScheme.primary[0] || '#5F77FF',
     secondary: colorScheme.secondary[0] || '#8CA2FF',
     accent: colorScheme.accent[0] || '#C248FF',
     textOnDark: '#F6F7FF',
   };
+  const toZhBullets = (items: Array<{ zh: string; en: string }>, limit: number) =>
+    items.slice(0, limit).map((item) => ({
+      zh: item.zh,
+      en: '',
+    }));
 
   if (poster.id === '01') {
     return {
@@ -877,10 +938,12 @@ function buildOverlaySpecForPoster(args: {
       titleZh: normalizedSellingPoints[0]?.zh || poster.title,
       titleEn: normalizedSellingPoints[0]?.en || poster.titleEn,
       subtitleZh: '严选品质，真实可见',
-      subtitleEn: 'Premium quality, clearly presented',
-      bullets: normalizedSellingPoints.slice(0, 3),
-      logoText: brandName.zh || brandName.en,
+      subtitleEn: '',
+      bullets: toZhBullets(normalizedSellingPoints, 2),
+      logoText,
       palette,
+      ctaZh: '立即选购',
+      ctaEn: 'SHOP NOW',
     };
   }
 
@@ -890,10 +953,42 @@ function buildOverlaySpecForPoster(args: {
       titleZh: '真实场景体验',
       titleEn: 'LIFESTYLE EXPERIENCE',
       subtitleZh: normalizedSellingPoints[0]?.zh || '日常使用更放心',
-      subtitleEn: normalizedSellingPoints[0]?.en || 'Built for everyday use',
-      bullets: normalizedSellingPoints.slice(1, 3),
-      logoText: brandName.zh || brandName.en,
+      subtitleEn: '',
+      bullets: toZhBullets(normalizedSellingPoints.slice(1), 2),
+      logoText,
       palette,
+      ctaZh: '场景推荐',
+      ctaEn: 'LIFESTYLE PICK',
+    };
+  }
+
+  if (poster.id === '03') {
+    return {
+      layout: 'generic',
+      titleZh: normalizedSellingPoints[0]?.zh || '工艺亮点',
+      titleEn: normalizedSellingPoints[0]?.en || 'PROCESS ADVANTAGE',
+      subtitleZh: '技术可视化表达',
+      subtitleEn: '',
+      bullets: toZhBullets(normalizedSellingPoints, 2),
+      logoText,
+      palette,
+      ctaZh: '技术解读',
+      ctaEn: 'TECH INSIGHT',
+    };
+  }
+
+  if (poster.id === '08') {
+    return {
+      layout: 'generic',
+      titleZh: `${brandName.zh || '品牌故事'} · 溯源自然`,
+      titleEn: `${(brandName.en || 'BRAND STORY').toUpperCase()} · BACK TO NATURE`,
+      subtitleZh: '来自自然灵感的配色与风味',
+      subtitleEn: '',
+      bullets: toZhBullets(normalizedSellingPoints, 1),
+      logoText,
+      palette,
+      ctaZh: '了解品牌',
+      ctaEn: 'DISCOVER BRAND',
     };
   }
 
@@ -910,17 +1005,9 @@ function buildOverlaySpecForPoster(args: {
           shelfLife: '保质期',
           storage: '储存方式',
         };
-        const keyEnMap: Record<string, string> = {
-          netContent: 'Net Content',
-          ingredients: 'Ingredients',
-          nutrition: 'Nutrition',
-          usage: 'Usage',
-          shelfLife: 'Shelf Life',
-          storage: 'Storage',
-        };
         return {
           zh: `${keyZhMap[key] || key}: ${value}`,
-          en: `${keyEnMap[key] || key}: ${value}`,
+          en: '',
         };
       });
 
@@ -929,14 +1016,71 @@ function buildOverlaySpecForPoster(args: {
       titleZh: '产品参数',
       titleEn: 'SPECIFICATIONS',
       subtitleZh: '关键信息一目了然',
-      subtitleEn: 'Key details at a glance',
+      subtitleEn: '',
       bullets: specBullets,
-      logoText: brandName.zh || brandName.en,
+      logoText,
       palette,
+      ctaZh: '扫码了解更多',
+      ctaEn: 'SCAN FOR DETAILS',
     };
   }
 
-  return undefined;
+  if (poster.id === '10') {
+    return {
+      layout: 'generic',
+      titleZh: '鲜甜指南',
+      titleEn: 'USAGE GUIDE',
+      subtitleZh: `3步享用 ${productType.specific || '产品'}`,
+      subtitleEn: '',
+      bullets: [
+        { zh: '步骤1：准备产品', en: '' },
+        { zh: '步骤2：按建议食用', en: '' },
+      ],
+      logoText,
+      palette,
+      ctaZh: '立即尝鲜',
+      ctaEn: 'TRY IT NOW',
+    };
+  }
+
+  if (poster.type === 'detail') {
+    const detailIndexMap: Record<string, number> = {
+      '04': 1,
+      '05': 2,
+      '06': 3,
+      '07': 4,
+    };
+    const pointIndex = detailIndexMap[poster.id] ?? 1;
+    const detailPoint = normalizedSellingPoints[pointIndex] || normalizedSellingPoints[0];
+    return {
+      layout: 'generic',
+      titleZh: detailPoint?.zh || '细节之美',
+      titleEn: detailPoint?.en || 'DETAIL FOCUS',
+      subtitleZh: `${productType.specific || '产品'}细节特写`,
+      subtitleEn: '',
+      bullets: toZhBullets(
+        normalizedSellingPoints.slice(Math.max(0, pointIndex - 1), pointIndex + 1),
+        2
+      ),
+      logoText,
+      palette,
+      ctaZh: '细节可见',
+      ctaEn: 'DETAILS VISIBLE',
+    };
+  }
+
+  return {
+    layout: 'generic',
+    titleZh: poster.title,
+    titleEn: poster.titleEn.toUpperCase(),
+    subtitleZh: normalizedSellingPoints[0]?.zh || '品质之选',
+    subtitleEn: '',
+    bullets: toZhBullets(normalizedSellingPoints, 1),
+    logoText,
+    palette,
+    ctaZh: '了解更多',
+    ctaEn: 'LEARN MORE',
+  };
 }
 
 function mapParameterKeyEn(key: string): string {

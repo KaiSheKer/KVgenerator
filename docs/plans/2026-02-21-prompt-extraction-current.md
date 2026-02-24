@@ -117,7 +117,7 @@ ${textLayoutDesc}
 - LOGO位置: 左上角,使用品牌名称 ${brandName.zh}
 - 主标题: 使用产品名称,大字号,居中或视觉焦点
 - 副标题: 展示核心卖点,使用 ${textLayout === 'stacked' ? '上下堆叠' : textLayout === 'parallel' ? '斜杠分隔' : '分离布局'}格式
-- CTA按钮: 底部居中,"立即购买" / "Shop Now"
+
 
 **整体风格**:
 ${designStyle},适合${targetAudience},品牌调性${brandTone}`,
