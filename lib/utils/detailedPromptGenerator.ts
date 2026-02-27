@@ -114,19 +114,21 @@ function buildDetailedScene(
 ): string {
   const scenes: Record<string, string> = {
     hero: `Soft natural lighting, minimalist gradient background with ${productInfo.colorScheme.primary[0]} tones. ` +
-          `Center stage: A single, perfect ${productName}, hyper-realistic detail, ` +
-          `exact match to uploaded product image. ` +
+          `Center stage: A single, perfect ${productName}, hyper-realistic detail, exact match to uploaded product image. ` +
+          `The texture and details are crisp and well-defined. ` +
           `Clean composition with negative space.`,
 
-    lifestyle: `Warm morning sunlight with dappled shadows. ` +
-               `Authentic daily life setting showing ${productName} in natural use context. ` +
-               `Soft-focus background elements suggesting home/kitchen environment. ` +
-               `Natural atmosphere, authentic feel.`,
+    lifestyle: `Warm morning sunlight with dappled shadows creating authentic atmosphere. ` +
+               `${productName} shown in natural daily life context - on table, counter, or in hand. ` +
+               `Surrounding elements suggest everyday use: a prepared setting, complementary items, or lifestyle props. ` +
+               `Soft-focus background elements suggesting home/kitchen/office environment. ` +
+               `Natural, inviting, real-world feel.`,
 
-    detail: `Extreme macro photography setup. ` +
-             `Controlled studio lighting from side/top to emphasize texture. ` +
-             `Shallow depth of field with smooth bokeh. ` +
-             `Focus on microscopic details of ${productName}.`,
+    detail: `Extreme macro photography setup with controlled lighting. ` +
+             `Focus on ${productName} microscopic texture, material surface, and craftsmanship details. ` +
+             `Controlled studio lighting from side/top to emphasize texture and fine details. ` +
+             `Shallow depth of field with smooth bokeh background. ` +
+             `Every pore, grain, or texture element is highly detailed and visible.`,
   };
 
   return scenes[posterType] || scenes.hero;
@@ -139,19 +141,21 @@ function buildDetailedSceneZh(
 ): string {
   const scenes: Record<string, string> = {
     hero: `柔和自然光，${productInfo.colorScheme.primary[0]}色调的极简渐变背景。` +
-          `画面中心：单个完美的${productName}，超写实细节，` +
-          `与上传的产品图完全一致。` +
+          `画面中心：单个完美的${productName}，超写实细节，与上传的产品图完全一致。` +
+          `纹理和细节清晰锐利，质感细腻。` +
           `干净构图，大量留白。`,
 
-    lifestyle: `温暖的晨光，斑驳光影。` +
-               `真实日常生活场景，展示${productName}在自然使用环境中的状态。` +
-               `背景虚化元素暗示居家/厨房环境。` +
-               `自然氛围，真实感。`,
+    lifestyle: `温暖的晨光，斑驳光影，营造真实氛围。` +
+               `${productName}在自然日常生活场景中——放置在桌子、台面或手中。` +
+               `周围元素暗示日常使用：准备好的场景、配套物品或生活道具。` +
+               `背景虚化元素暗示居家/厨房/办公环境。` +
+               `自然、亲切、真实世界的感受。`,
 
-    detail: `极端微距摄影设置。` +
-             `受控的工作室侧光/顶光以强调质感。` +
-             `浅景深，平滑散景。` +
-             `聚焦${productName}的微观细节。`,
+    detail: `极端微距摄影设置，受控光照。` +
+             `聚焦${productName}的微观纹理、材质表面和工艺细节。` +
+             `受控的工作室侧光/顶光以强调质感和精细细节。` +
+             `浅景深，背景平滑虚化。` +
+             `每个毛孔、颗粒或纹理元素都高度清晰可见。`,
   };
 
   return scenes[posterType] || scenes.hero;
