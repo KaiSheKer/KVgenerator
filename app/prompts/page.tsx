@@ -8,7 +8,6 @@ import { Card } from '@/components/ui/card';
 import { generatePrompts } from '@/lib/utils/promptGenerator';
 import { cn } from '@/lib/utils';
 import type {
-  GenerationPipelineMode,
   GenerationQualityMode,
 } from '@/contexts/AppContext';
 
@@ -35,22 +34,8 @@ const QUALITY_MODE_OPTIONS: Array<{
   { value: 'quality', label: '精品', description: '每张生成 3 个候选，默认演示推荐', candidates: 3 },
 ];
 
-const GENERATION_MODE_OPTIONS: Array<{
-  value: GenerationPipelineMode;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: 'legacy_ai_text',
-    label: 'AI原生出字',
-    description: '直接让模型生成文案与画面，作为历史基线',
-  },
-  {
-    value: 'one_pass_layout',
-    label: '一步成图（推荐）',
-    description: '将视觉、文案、布局一次交给模型直接生成成品图',
-  },
-];
+const FIXED_GENERATION_MODE = 'one_pass_layout_anchor' as const;
+const FIXED_GENERATION_MODE_LABEL = '一步成图（短+锚点）';
 
 const QUICK_VALIDATE_POSTER_IDS = ['01', '04', '09'];
 
@@ -93,7 +78,6 @@ export default function PromptsPage() {
     selectedStyle,
     selectedPosterIds,
     selectedQualityMode,
-    selectedGenerationMode,
     setGeneratedPrompts,
     setSelectedPosterIds,
     setSelectedQualityMode,
@@ -133,12 +117,6 @@ export default function PromptsPage() {
     () => QUALITY_MODE_OPTIONS.find((item) => item.value === selectedQualityMode) ?? QUALITY_MODE_OPTIONS[2],
     [selectedQualityMode]
   );
-  const generationModeMeta = useMemo(
-    () =>
-      GENERATION_MODE_OPTIONS.find((item) => item.value === selectedGenerationMode) ??
-      GENERATION_MODE_OPTIONS[0],
-    [selectedGenerationMode]
-  );
 
   useEffect(() => {
     if (!editedProductInfo || !selectedStyle) {
@@ -146,10 +124,12 @@ export default function PromptsPage() {
       return;
     }
 
+    setSelectedGenerationMode(FIXED_GENERATION_MODE);
+
     if (prompts) {
       setGeneratedPrompts(prompts);
     }
-  }, [editedProductInfo, prompts, router, selectedStyle, setGeneratedPrompts]);
+  }, [editedProductInfo, prompts, selectedStyle, router, setGeneratedPrompts, setSelectedGenerationMode]);
 
   if (!editedProductInfo || !selectedStyle || !prompts) {
     return null;
@@ -158,14 +138,11 @@ export default function PromptsPage() {
   const safeSelectedIndex = Math.min(selectedIndex, prompts.posters.length - 1);
   const currentPrompt = prompts.posters[safeSelectedIndex];
   const currentPromptBaseEn =
-    selectedGenerationMode === 'legacy_ai_text'
-      ? currentPrompt.promptEn
-      : currentPrompt.runtimePromptEn || currentPrompt.promptEn;
+    currentPrompt.runtimePromptAnchorEn ||
+    currentPrompt.runtimePromptEn ||
+    currentPrompt.promptEn;
   const currentPromptEn = editablePromptEnById[currentPrompt.id] ?? currentPromptBaseEn;
-  const currentNegative =
-    selectedGenerationMode === 'legacy_ai_text'
-      ? currentPrompt.negative
-      : currentPrompt.runtimeNegative || currentPrompt.negative;
+  const currentNegative = currentPrompt.runtimeNegative || currentPrompt.negative;
 
   const handleCopy = (text: string, field: 'zh' | 'en') => {
     navigator.clipboard.writeText(text);
@@ -260,18 +237,14 @@ export default function PromptsPage() {
       posters: prompts.posters.map((poster) => {
         const editedPrompt = editablePromptEnById[poster.id];
         const basePrompt =
-          selectedGenerationMode === 'legacy_ai_text'
-            ? poster.promptEn
-            : poster.runtimePromptEn || poster.promptEn;
+          poster.runtimePromptAnchorEn || poster.runtimePromptEn || poster.promptEn;
         const effectivePrompt =
           typeof editedPrompt === 'string' && editedPrompt.trim().length > 0
             ? editedPrompt
             : basePrompt;
         return {
           ...poster,
-          ...(selectedGenerationMode === 'legacy_ai_text'
-            ? { promptEn: effectivePrompt }
-            : { runtimePromptEn: effectivePrompt }),
+          runtimePromptAnchorEn: effectivePrompt,
         };
       }),
     };
@@ -287,7 +260,7 @@ export default function PromptsPage() {
           ← 上一步
         </Button>
         <Button size="lg" onClick={handleGenerate}>
-          开始生成海报 ({selectedPosterIdsForOutput.length}张 · {qualityModeMeta.label} · {generationModeMeta.label}) →
+          开始生成海报 ({selectedPosterIdsForOutput.length}张 · {qualityModeMeta.label} · {FIXED_GENERATION_MODE_LABEL}) →
         </Button>
       </div>
 
@@ -335,30 +308,6 @@ export default function PromptsPage() {
                   : 'border-border/70 bg-secondary/55 text-muted-foreground hover:border-primary/45 hover:text-foreground'
               )}
               onClick={() => setSelectedQualityMode(option.value)}
-            >
-              <div className="text-sm font-semibold">{option.label}</div>
-              <div className="text-xs opacity-90">{option.description}</div>
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="studio-panel p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold tracking-wide">生成链路模式</h3>
-          <span className="text-xs text-muted-foreground">当前: {generationModeMeta.label}</span>
-        </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          {GENERATION_MODE_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              className={cn(
-                'rounded-xl border px-4 py-3 text-left transition-all duration-200',
-                selectedGenerationMode === option.value
-                  ? 'border-primary/80 bg-gradient-to-r from-primary to-accent text-white shadow-[0_10px_24px_rgba(70,92,255,0.35)]'
-                  : 'border-border/70 bg-secondary/55 text-muted-foreground hover:border-primary/45 hover:text-foreground'
-              )}
-              onClick={() => setSelectedGenerationMode(option.value)}
             >
               <div className="text-sm font-semibold">{option.label}</div>
               <div className="text-xs opacity-90">{option.description}</div>
@@ -456,9 +405,7 @@ export default function PromptsPage() {
               className="glass-scrollbar w-full rounded-xl border border-border/70 bg-secondary/40 p-4 text-sm leading-6 outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/40"
             />
             <p className="mt-2 text-xs text-muted-foreground">
-              {selectedGenerationMode === 'legacy_ai_text'
-                ? '当前模式直接使用英文 Prompt 生成；可针对单张海报定向优化。'
-                : '当前模式使用“一步成图 Prompt”生成；此处编辑会直接影响最终成图。'}
+              当前固定使用“短主提示词 + 锚点版式”生成；可直接微调锚点与文案。
             </p>
           </div>
 

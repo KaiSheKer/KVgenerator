@@ -78,6 +78,7 @@ export default function StylePage() {
 
   const recommendedStyle = editedProductInfo.recommendedStyle || 'magazine';
   const recommendedTypography = editedProductInfo.recommendedTypography || 'glassmorphism';
+  const styleDirection = editedProductInfo.styleDirection;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 animate-fade-in">
@@ -86,6 +87,12 @@ export default function StylePage() {
           <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Style Config</p>
           <h2 className="text-2xl font-semibold">选择视觉风格</h2>
           <p className="text-sm text-muted-foreground">AI 推荐: {VISUAL_STYLES.find(s => s.id === recommendedStyle)?.name}</p>
+          {styleDirection ? (
+            <p className="text-xs text-muted-foreground">
+              双风格导向: {styleDirection.primary} / {styleDirection.secondary}
+              {styleDirection.tags?.length ? ` · ${styleDirection.tags.join(' · ')}` : ''}
+            </p>
+          ) : null}
         </div>
         <div className="hidden rounded-full border border-border/70 px-3 py-1 text-xs text-muted-foreground md:block">
           Step 3 / 6

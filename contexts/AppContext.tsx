@@ -43,6 +43,11 @@ export interface AnalysisResponse {
   };
   recommendedStyle: string;
   recommendedTypography: string;
+  styleDirection?: {
+    primary: string;
+    secondary: string;
+    tags: string[];
+  };
 }
 
 export type PosterAspectRatio =
@@ -56,9 +61,7 @@ export type PosterAspectRatio =
   | '21:9';
 
 export type GenerationQualityMode = 'fast' | 'balanced' | 'quality';
-export type GenerationPipelineMode =
-  | 'legacy_ai_text'
-  | 'one_pass_layout';
+export type GenerationPipelineMode = 'one_pass_layout_anchor';
 
 export interface StyleConfig {
   visual: string;
@@ -96,6 +99,9 @@ export interface PosterPrompt {
   promptEn: string;
   negative: string;
   runtimePromptEn?: string;
+  runtimePromptAnchorEn?: string;
+  runtimeMainPromptEn?: string;
+  runtimeLayoutPromptEn?: string;
   runtimeNegative?: string;
   overlaySpec?: PosterOverlaySpec;
 }
@@ -165,7 +171,7 @@ const initialState: AppState = {
   selectedStyle: null,
   selectedPosterIds: null,
   selectedQualityMode: 'quality',
-  selectedGenerationMode: 'one_pass_layout',
+  selectedGenerationMode: 'one_pass_layout_anchor',
   generatedPrompts: null,
   generatedPosters: null,
   isLoading: false,

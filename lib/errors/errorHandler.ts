@@ -4,6 +4,23 @@ type RetryableError = Error & {
   retryAfterMs?: number;
 };
 
+function shouldRetryError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if ('retryAfterMs' in error) return true;
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('429') ||
+    message.includes('503') ||
+    message.includes('resource_exhausted') ||
+    message.includes('high demand') ||
+    message.includes('quota') ||
+    message.includes('failed to fetch') ||
+    message.includes('network') ||
+    message.includes('timeout')
+  );
+}
+
 export function handleError(error: unknown) {
   console.error('Error occurred:', error);
 
@@ -46,7 +63,7 @@ export async function withRetry<T>(
     try {
       return await fn();
     } catch (error) {
-      if (i === maxRetries - 1) throw error;
+      if (i === maxRetries - 1 || !shouldRetryError(error)) throw error;
       const retryAfterMs =
         error instanceof Error && 'retryAfterMs' in error
           ? (error as RetryableError).retryAfterMs

@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const result = await analyzeProduct(imageBase64);
     return NextResponse.json(result);
   } catch (error) {
+    console.error('[api/analyze] failed', error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Analyze API failed',

@@ -10,6 +10,7 @@ interface GenerationRequest {
   height?: number;
   referenceImage?: string;
   enforceNoText?: boolean;
+  enforceHardConstraints?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
       height: body.height,
       referenceImage: body.referenceImage,
       enforceNoText: body.enforceNoText,
+      enforceHardConstraints: body.enforceHardConstraints,
     });
 
     return NextResponse.json({ dataUrl });

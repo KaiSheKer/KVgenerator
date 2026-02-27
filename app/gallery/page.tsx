@@ -12,12 +12,12 @@ import { generatePoster } from '@/lib/api/client';
 import type {
   GeneratedPoster,
   GeneratedPosterVersion,
+  GenerationPipelineMode,
   PosterAspectRatio,
 } from '@/contexts/AppContext';
 
-const GENERATION_MODE_LABELS: Record<string, string> = {
-  legacy_ai_text: 'AI原生出字',
-  one_pass_layout: '一步成图（文案+布局）',
+const GENERATION_MODE_LABELS: Record<GenerationPipelineMode, string> = {
+  one_pass_layout_anchor: '一步成图（短提示词+锚点版式）',
 };
 
 function getPosterSize(aspectRatio?: PosterAspectRatio): { width: number; height: number } {
@@ -33,6 +33,14 @@ function getPosterSize(aspectRatio?: PosterAspectRatio): { width: number; height
     '21:9': { width: 2100, height: 900 },
   };
   return ratioMap[ratio];
+}
+
+function resolveAspectRatioStyle(aspectRatio?: PosterAspectRatio): string {
+  const [width, height] = (aspectRatio || '9:16').split(':').map((value) => Number(value));
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return '9 / 16';
+  }
+  return `${width} / ${height}`;
 }
 
 function getPosterVersions(poster: GeneratedPoster): GeneratedPosterVersion[] {
@@ -285,7 +293,9 @@ export default function GalleryPage() {
     }
 
     const prompt = promptById.get(selected.id);
-    if (!prompt?.promptEn) {
+    const basePrompt =
+      prompt?.runtimePromptAnchorEn || prompt?.runtimePromptEn || prompt?.promptEn;
+    if (!basePrompt) {
       throw new Error('未找到该海报的英文提示词');
     }
 
@@ -296,7 +306,7 @@ export default function GalleryPage() {
 
     const { width, height } = getPosterSize(selectedStyle?.aspectRatio);
     const refinedPrompt = [
-      prompt.promptEn,
+      basePrompt,
       'Refinement instruction:',
       instruction,
       'Keep product identity and composition continuity with the reference image. Apply only the requested visual changes.',
@@ -304,10 +314,11 @@ export default function GalleryPage() {
 
     const refinedUrl = await generatePoster({
       prompt: refinedPrompt,
-      negative: prompt.negative,
+      negative: prompt.runtimeNegative || prompt.negative,
       width,
       height,
       referenceImage,
+      enforceHardConstraints: true,
     });
 
     const baseVersions = getPosterVersions(selected);
@@ -424,7 +435,10 @@ export default function GalleryPage() {
               key={poster.id}
               className="relative w-[300px] max-w-[92vw] overflow-hidden rounded-3xl border border-border/70 bg-surface shadow-md transition-all duration-300 hover:shadow-float hover:-translate-y-1"
             >
-              <div className="group aspect-[9/16] relative bg-muted">
+              <div
+                className="group relative bg-muted"
+                style={{ aspectRatio: resolveAspectRatioStyle(selectedStyle?.aspectRatio) }}
+              >
                 {cardImageUrl ? (
                   <Image
                     src={cardImageUrl}
@@ -559,7 +573,7 @@ export default function GalleryPage() {
 
                 {isCardPromptOpen && (
                   <div className="glass-scrollbar max-h-24 overflow-y-auto rounded-xl border border-border/70 bg-secondary/40 p-2 text-[11px] leading-5 text-muted-foreground whitespace-pre-wrap">
-                    {prompt?.promptEn || '暂无提示词'}
+                    {prompt?.runtimePromptAnchorEn || prompt?.runtimePromptEn || prompt?.promptEn || '暂无提示词'}
                   </div>
                 )}
 
