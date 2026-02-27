@@ -68,25 +68,24 @@ function buildConcisePromptEn(config: ConcisePromptConfig): string {
   // 产品描述
   const productName = productInfo.productType.specific || productInfo.productType.category;
 
-  // 组装提示词 - 参考阳光鲜橙示例的结构
+  // 组装提示词 - 严格参考阳光鲜橙示例的结构
   const parts = [
     // 开头：比例+风格+光影
     `${aspectRatio} ${orientation} poster, ${visualStyle}, ${lighting}.`,
 
-    // 场景关键词 + 背景（更具体的描述）
-    `${background}. ${sceneKeywords.join(', ')}.`,
+    // 背景
+    `${background}.`,
 
-    // 主体描述（完整详细）
-    `The central focus is ${buildMainSubject(productName, posterType)}.`,
+    // 主体描述（直接描述，不用"The central focus is"前缀）
+    buildMainSubject(productName, posterType),
 
-    // 文案元素
-    `Text elements: ${buildTextElements(title, subtitle, style.textLayout)}.`,
+    // 文案元素（简化格式）
+    `Text: ${buildTextElements(title, subtitle, style.textLayout)}.`,
 
-    // 产品还原要求
-    `Product restoration: Please strictly restore the product from the uploaded image.`,
-
-    // 摄影质量
-    `${photographyStyle}, 8k resolution, commercial quality.`,
+    // 产品还原要求（如果有subtitle则添加具体要求）
+    subtitle
+      ? `Subtitle: '${subtitle.zh}' / '${subtitle.en}'. Please strictly restore the product from the uploaded image, including specific details.`
+      : `Please strictly restore the product from the uploaded image.`,
   ];
 
   return parts.join(' ');
@@ -216,64 +215,64 @@ function resolveVisualStyleZh(visual: string): string {
 
 function buildBackgroundSuggestion(posterType: string, primaryColor?: string): string {
   const backgrounds: Record<string, string> = {
-    hero: `minimalist gradient background with ${primaryColor || 'soft'} tones, clean composition with negative space`,
-    lifestyle: 'natural environment background - home, kitchen, or daily life setting with authentic atmosphere',
-    detail: 'blurred background with soft bokeh effect, shallow depth of field to emphasize subject',
-    process: 'clean studio background with controlled lighting, suitable for technical visualization',
-    brand: 'cinematic atmospheric background that conveys brand mood and storytelling',
-    specs: 'clean neutral background with minimalist styling, focusing on product clarity',
-    usage: 'clean background with instructional elements, clear and uncluttered layout',
+    hero: `minimalist gradient background with ${primaryColor || 'soft'} tones`,
+    lifestyle: 'natural environment background suggesting authentic daily life setting',
+    detail: 'blurred background with soft bokeh effect',
+    process: 'clean studio background suitable for technical visualization',
+    brand: 'cinematic atmospheric background that conveys brand mood',
+    specs: 'clean neutral background with minimalist styling',
+    usage: 'clean background with instructional elements',
   };
   return backgrounds[posterType] || backgrounds.hero;
 }
 
 function buildBackgroundSuggestionZh(posterType: string): string {
   const backgrounds: Record<string, string> = {
-    hero: '极简渐变背景，干净构图，大量留白',
-    lifestyle: '自然环境背景——家庭、厨房或日常生活场景，真实氛围',
-    detail: '虚化背景，柔和散景效果，浅景深突出主体',
-    process: '干净的工作室背景，受控光照，适合技术可视化',
-    brand: '电影感氛围背景，传达品牌情绪和故事',
-    specs: '干净中性背景，极简风格，聚焦产品清晰度',
-    usage: '干净背景，带指导元素，清晰不杂乱的布局',
+    hero: '极简渐变背景',
+    lifestyle: '自然环境背景，暗示真实日常生活场景',
+    detail: '虚化背景，柔和散景效果',
+    process: '干净工作室背景，适合技术可视化',
+    brand: '电影感氛围背景，传达品牌情绪',
+    specs: '干净中性背景，极简风格',
+    usage: '干净背景，带指导元素',
   };
   return backgrounds[posterType] || backgrounds.hero;
 }
 
 function buildMainSubject(productName: string, posterType: string): string {
   const subjects: Record<string, string> = {
-    hero: `a single, perfect ${productName}, exactly as shown in the original product image. The product is centered with clean composition. The texture and details are crisp and well-defined.`,
+    hero: `A single, perfect ${productName}, exactly as shown in the original product image. The texture and details are crisp and well-defined.`,
 
-    lifestyle: `${productName} in authentic daily life context. The product is shown being used naturally in a realistic setting - on a table, counter, or in hand. Surrounding elements suggest everyday use without cluttering the scene. Warm, inviting atmosphere with soft natural lighting.`,
+    lifestyle: `On a table or counter, the ${productName} is shown in natural daily life context. Surrounding elements suggest authentic everyday use. Warm, inviting atmosphere.`,
 
-    detail: `extreme close-up of ${productName} details. Focus on microscopic texture, material surface, product craftsmanship. Shallow depth of field with smooth bokeh background. Lighting emphasizes texture and fine details.`,
+    detail: `Extreme close-up of ${productName} texture and details. The microscopic surface, material grain, and craftsmanship are highly visible. Shallow depth of field with smooth bokeh background.`,
 
-    process: `${productName} with technical visualization showing internal structure, manufacturing process, or key features. Conceptual illustration style with floating elements, annotations, or x-ray views revealing what makes the product special.`,
+    process: `${productName} with technical visualization showing internal structure or key features. Conceptual illustration style with floating elements or x-ray views revealing product details.`,
 
-    brand: `${productName} in brand storytelling scene. Cinematic atmosphere that conveys brand values and heritage. Background elements tell the brand story - origin, craftsmanship, or philosophy. Emotional, aspirational mood.`,
+    brand: `${productName} in brand storytelling scene. Cinematic atmosphere conveys brand values and heritage. Background elements tell the brand story - origin, craftsmanship, or philosophy.`,
 
-    specs: `top-down flat lay view of ${productName}. Clean, organized arrangement showing product proportions and scale. Minimalist styling with measurement annotations or scale references. Neutral background for clear visibility.`,
+    specs: `Top-down flat lay view of ${productName}. Clean, organized arrangement showing product proportions. Minimalist styling with clear visibility.`,
 
-    usage: `${productName} with step-by-step usage demonstration. Clear instructional flow showing how to use the product. Simple icons or numbered steps. Clean, uncluttered layout with the product as the focal point.`,
+    usage: `${productName} with step-by-step usage demonstration. Clear instructional flow showing how to use the product. Simple icons or numbered steps. Clean layout.`,
   };
   return subjects[posterType] || subjects.hero;
 }
 
 function buildMainSubjectZh(productName: string, posterType: string): string {
   const subjects: Record<string, string> = {
-    hero: `单个完美的${productName}，与原图完全一致。产品居中构图，干净简洁。纹理和细节清晰锐利，质感细腻。`,
+    hero: `单个完美的${productName}，与原图完全一致。纹理和细节清晰锐利，质感细腻。`,
 
-    lifestyle: `${productName}在真实日常生活场景中。产品在自然使用状态，放置在桌子、台面或手中。周围元素暗示日常使用但不杂乱。温暖的氛围，柔和自然光。`,
+    lifestyle: `${productName}在桌子或台面上，自然日常生活场景。周围元素暗示真实日常使用。温暖、亲切的氛围。`,
 
-    detail: `${productName}的极端微距特写。聚焦微观纹理、材质表面、产品工艺。浅景深，背景虚化。光照强调质感和精细细节。`,
+    detail: `${productName}的极端微距特写，聚焦纹理和细节。微观表面、材质颗粒和工艺高度可见。浅景深，背景虚化。`,
 
-    process: `${productName}的技术可视化，展示内部结构、制造工艺或核心特点。概念插图风格，带有浮动元素、注释或透视效果，展现产品的独特之处。`,
+    process: `${productName}的技术可视化，展示内部结构或核心特点。概念插图风格，带有浮动元素或透视效果，展现产品细节。`,
 
-    brand: `${productName}在品牌故事场景中。电影感氛围传达品牌价值和传承。背景元素讲述品牌故事——产地、工艺或理念。情感化、令人向往的意境。`,
+    brand: `${productName}在品牌故事场景中。电影感氛围传达品牌价值和传承。背景元素讲述品牌故事——产地、工艺或理念。`,
 
-    specs: `${productName}的俯视平铺视图。干净有序的排列，展示产品比例和尺度。极简风格，带有测量注释或比例参考。中性背景确保清晰可见。`,
+    specs: `${productName}的俯视平铺视图。干净有序的排列，展示产品比例。极简风格，清晰可见。`,
 
-    usage: `${productName}的分步使用演示。清晰的教学流程，展示如何使用产品。简单图标或编号步骤。干净不杂乱的布局，产品为焦点。`,
+    usage: `${productName}的分步使用演示。清晰的教学流程，展示如何使用产品。简单图标或编号步骤。干净布局。`,
   };
   return subjects[posterType] || subjects.hero;
 }
