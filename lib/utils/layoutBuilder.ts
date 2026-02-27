@@ -96,7 +96,7 @@ export function buildDetailedLayout(config: LayoutBuildConfig): DetailedLayoutSp
   };
 
   const baseLayout: DetailedLayoutSpec = {
-    layout: posterType === 'specs' ? 'specs' : posterType,
+    layout: posterType === 'specs' ? 'specs' : posterType === 'hero' || posterType === 'lifestyle' ? posterType : 'generic',
     titleZh: title.zh,
     titleEn: title.en,
     subtitleZh: subtitle?.zh,
