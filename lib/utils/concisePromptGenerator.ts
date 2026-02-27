@@ -48,7 +48,7 @@ export function generateConcisePrompt(
 
 /**
  * 构建简洁型英文提示词
- * 参考阳光鲜橙示例的结构
+ * 参考提示词说明.md的逻辑：分部分描述，使用所有AI分析字段
  */
 function buildConcisePromptEn(config: ConcisePromptConfig): string {
   const { productInfo, style, posterType, title, subtitle } = config;
@@ -62,30 +62,25 @@ function buildConcisePromptEn(config: ConcisePromptConfig): string {
   // 视觉风格描述
   const visualStyle = resolveVisualStyle(style.visual);
 
-  // 背景建议
-  const background = buildBackgroundSuggestion(posterType, productInfo.colorScheme.primary[0]);
-
-  // 产品描述
+  // 产品名称
   const productName = productInfo.productType.specific || productInfo.productType.category;
 
-  // 组装提示词 - 严格参考阳光鲜橙示例的结构
+  // 组装提示词 - 分部分结构
   const parts = [
-    // 开头：比例+风格+光影
+    // 第1部分：基础信息
     `${aspectRatio} ${orientation} poster, ${visualStyle}, ${lighting}.`,
 
-    // 背景
-    `${background}.`,
+    // 第2部分：场景描述
+    buildSceneDescription(productInfo, posterType),
 
-    // 主体描述（直接描述，不用"The central focus is"前缀）
-    buildMainSubject(productName, posterType),
+    // 第3部分：产品展示（独立部分，用bullet points）
+    buildProductDisplay(productInfo),
 
-    // 文案元素（简化格式）
+    // 第4部分：文案元素
     `Text: ${buildTextElements(title, subtitle, style.textLayout)}.`,
 
-    // 产品还原要求（如果有subtitle则添加具体要求）
-    subtitle
-      ? `Subtitle: '${subtitle.zh}' / '${subtitle.en}'. Please strictly restore the product from the uploaded image, including specific details.`
-      : `Please strictly restore the product from the uploaded image.`,
+    // 第5部分：产品还原要求
+    `Please strictly restore the product from the uploaded image, including all packaging details.`,
   ];
 
   return parts.join(' ');
@@ -312,3 +307,149 @@ function buildTextElementsZh(
 
   return layoutFormat;
 }
+
+// ============================================================================
+// 新增：使用所有AI分析字段的辅助函数
+// ============================================================================
+
+/**
+ * 构建场景描述（使用designStyle, brandTone, packagingHighlights）
+ */
+function buildSceneDescription(productInfo: AnalysisResponse, posterType: string): string {
+  const designStyle = productInfo.designStyle || '';
+  const brandTone = productInfo.brandTone || '';
+
+  const scenes: Record<string, string> = {
+    hero: `Minimalist ${designStyle} style, ${brandTone} atmosphere. Clean composition with negative space.`,
+
+    lifestyle: `${designStyle} lifestyle photography showing ${productInfo.productType.specific} in authentic daily life context. ${brandTone} mood. Surrounding elements suggest everyday use.`,
+
+    detail: `Macro photography focus on ${productInfo.productType.specific} details. ${designStyle} aesthetic with controlled lighting to emphasize texture and craftsmanship.`,
+
+    process: `Technical visualization showing ${productInfo.productType.specific} features. ${designStyle} illustration style with floating elements or annotations.`,
+
+    brand: `${brandTone} brand storytelling scene. Cinematic atmosphere with ${designStyle} aesthetics. Background elements convey brand values.`,
+
+    specs: `Technical infographic style, clean ${designStyle} layout. Top-down view showing product proportions with minimal annotations.`,
+
+    usage: `Instructional demonstration style, clear ${designStyle} aesthetics. Step-by-step flow showing how to use ${productInfo.productType.specific}.`,
+  };
+
+  return scenes[posterType] || scenes.hero;
+}
+
+/**
+ * 构建产品展示部分（使用所有AI分析字段，bullet points格式）
+ */
+function buildProductDisplay(productInfo: AnalysisResponse): string {
+  const parts: string[] = [];
+
+  const productName = productInfo.productType.specific || productInfo.productType.category;
+  parts.push(`${productInfo.brandName.en} ${productInfo.brandName.zh} ${productName} packaging design.`);
+
+  if (productInfo.colorScheme.primary && productInfo.colorScheme.primary.length > 0) {
+    parts.push(`Primary colors: ${productInfo.colorScheme.primary.join(', ')}`);
+  }
+  if (productInfo.colorScheme.secondary && productInfo.colorScheme.secondary.length > 0) {
+    parts.push(`Secondary colors: ${productInfo.colorScheme.secondary.join(', ')}`);
+  }
+  if (productInfo.colorScheme.accent && productInfo.colorScheme.accent.length > 0) {
+    parts.push(`Accent colors: ${productInfo.colorScheme.accent.join(', ')}`);
+  }
+
+  if (productInfo.designStyle) {
+    parts.push(`Design style: ${productInfo.designStyle}`);
+  }
+
+  if (productInfo.packagingHighlights && productInfo.packagingHighlights.length > 0) {
+    productInfo.packagingHighlights.forEach(highlight => {
+      if (highlight) parts.push(`- ${highlight}`);
+    });
+  }
+
+  if (productInfo.specifications) {
+    parts.push(`Specifications: ${productInfo.specifications}`);
+  }
+
+  const params = productInfo.parameters;
+  if (params.netContent) parts.push(`Net content: ${params.netContent}`);
+  if (params.ingredients) parts.push(`Ingredients: ${params.ingredients}`);
+  if (params.nutrition) parts.push(`Nutrition: ${params.nutrition}`);
+  if (params.usage) parts.push(`Usage: ${params.usage}`);
+  if (params.shelfLife) parts.push(`Shelf life: ${params.shelfLife}`);
+  if (params.storage) parts.push(`Storage: ${params.storage}`);
+
+  return parts.join('. ');
+}
+
+/**
+ * 构建场景描述（中文版）
+ */
+function buildSceneDescriptionZh(productInfo: AnalysisResponse, posterType: string): string {
+  const designStyle = productInfo.designStyle || '';
+  const brandTone = productInfo.brandTone || '';
+
+  const scenes: Record<string, string> = {
+    hero: `极简${designStyle}风格，${brandTone}氛围。干净构图，大量留白。`,
+
+    lifestyle: `${designStyle}生活摄影风格，展示${productInfo.productType.specific}在真实日常生活场景中。${brandTone}情绪。周围元素暗示日常使用。`,
+
+    detail: `微距摄影聚焦${productInfo.productType.specific}细节。${designStyle}美学，受控光照强调纹理和工艺。`,
+
+    process: `技术可视化展示${productInfo.productType.specific}特点。${designStyle}插图风格，带有浮动元素或注释。`,
+
+    brand: `${brandTone}品牌故事场景。电影感氛围，${designStyle}美学。背景元素传达品牌价值。`,
+
+    specs: `技术信息图表风格，干净${designStyle}布局。俯视图展示产品比例，极简注释。`,
+
+    usage: `教学演示风格，清晰${designStyle}美学。分步流程展示如何使用${productInfo.productType.specific}。`,
+  };
+
+  return scenes[posterType] || scenes.hero;
+}
+
+/**
+ * 构建产品展示部分（中文版）
+ */
+function buildProductDisplayZh(productInfo: AnalysisResponse): string {
+  const parts: string[] = [];
+
+  const productName = productInfo.productType.specific || productInfo.productType.category;
+  parts.push(`${productInfo.brandName.zh}${productInfo.brandName.en}${productName}包装设计。`);
+
+  if (productInfo.colorScheme.primary && productInfo.colorScheme.primary.length > 0) {
+    parts.push(`主色：${productInfo.colorScheme.primary.join('、')}`);
+  }
+  if (productInfo.colorScheme.secondary && productInfo.colorScheme.secondary.length > 0) {
+    parts.push(`辅助色：${productInfo.colorScheme.secondary.join('、')}`);
+  }
+  if (productInfo.colorScheme.accent && productInfo.colorScheme.accent.length > 0) {
+    parts.push(`点缀色：${productInfo.colorScheme.accent.join('、')}`);
+  }
+
+  if (productInfo.designStyle) {
+    parts.push(`设计风格：${productInfo.designStyle}`);
+  }
+
+  if (productInfo.packagingHighlights && productInfo.packagingHighlights.length > 0) {
+    productInfo.packagingHighlights.forEach(highlight => {
+      if (highlight) parts.push(`- ${highlight}`);
+    });
+  }
+
+  if (productInfo.specifications) {
+    parts.push(`规格：${productInfo.specifications}`);
+  }
+
+  const params = productInfo.parameters;
+  if (params.netContent) parts.push(`净含量：${params.netContent}`);
+  if (params.ingredients) parts.push(`成分：${params.ingredients}`);
+  if (params.nutrition) parts.push(`营养成分：${params.nutrition}`);
+  if (params.usage) parts.push(`用法：${params.usage}`);
+  if (params.shelfLife) parts.push(`保质期：${params.shelfLife}`);
+  if (params.storage) parts.push(`储存：${params.storage}`);
+
+  return parts.join('。');
+}
+
+
