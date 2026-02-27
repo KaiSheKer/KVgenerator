@@ -74,7 +74,7 @@ function buildConcisePromptEn(config: ConcisePromptConfig): string {
     buildSceneDescription(productInfo, posterType),
 
     // 第3部分：产品展示（独立部分，用bullet points）
-    buildProductDisplay(productInfo),
+    buildProductDisplay(productInfo, posterType),
 
     // 第4部分：文案元素（如果用户没提供subtitle，让AI根据产品信息自己提炼）
     `Text: ${buildTextElements(title, subtitle, style.textLayout, productInfo)}.`,
@@ -384,47 +384,97 @@ function buildSceneDescription(productInfo: AnalysisResponse, posterType: string
 }
 
 /**
- * 构建产品展示部分（使用所有AI分析字段，bullet points格式）
+ * 构建产品展示部分（根据海报类型筛选字段）
  */
-function buildProductDisplay(productInfo: AnalysisResponse): string {
+function buildProductDisplay(
+  productInfo: AnalysisResponse,
+  posterType: 'hero' | 'lifestyle' | 'process' | 'detail' | 'brand' | 'specs' | 'usage'
+): string {
   const parts: string[] = [];
-
   const productName = productInfo.productType.specific || productInfo.productType.category;
+
+  // 所有类型都包含的基础信息
   parts.push(`${productInfo.brandName.en} ${productInfo.brandName.zh} ${productName} packaging design.`);
 
+  // 根据海报类型筛选字段
+  switch (posterType) {
+    case 'hero':
+    case 'detail':
+    case 'brand':
+      // 视觉类海报：需要颜色、设计风格、包装亮点
+      addVisualFields(parts, productInfo);
+      break;
+
+    case 'lifestyle':
+      // 生活场景：只需要基础信息 + 设计风格（不要完整配色）
+      if (productInfo.designStyle) {
+        parts.push(`Design style: ${productInfo.designStyle}`);
+      }
+      if (productInfo.packagingHighlights && productInfo.packagingHighlights.length > 0) {
+        productInfo.packagingHighlights.slice(0, 2).forEach(highlight => {
+          if (highlight) parts.push(`- ${highlight}`);
+        });
+      }
+      break;
+
+    case 'specs':
+      // 产品参数：需要规格、营养成分、净含量
+      addTechnicalFields(parts, productInfo);
+      break;
+
+    case 'usage':
+      // 使用指南：需要使用方法、保质期、储存
+      addUsageFields(parts, productInfo);
+      break;
+
+    case 'process':
+      // 工艺技术：需要规格、成分、净含量
+      addTechnicalFields(parts, productInfo);
+      break;
+  }
+
+  return parts.join('. ');
+}
+
+/**
+ * 添加视觉类字段（颜色、设计风格、包装亮点）
+ */
+function addVisualFields(parts: string[], productInfo: AnalysisResponse): void {
+  // 颜色信息（简化：只输出主色）
   if (productInfo.colorScheme.primary && productInfo.colorScheme.primary.length > 0) {
     parts.push(`Primary colors: ${productInfo.colorScheme.primary.join(', ')}`);
   }
-  if (productInfo.colorScheme.secondary && productInfo.colorScheme.secondary.length > 0) {
-    parts.push(`Secondary colors: ${productInfo.colorScheme.secondary.join(', ')}`);
-  }
-  if (productInfo.colorScheme.accent && productInfo.colorScheme.accent.length > 0) {
-    parts.push(`Accent colors: ${productInfo.colorScheme.accent.join(', ')}`);
-  }
-
   if (productInfo.designStyle) {
     parts.push(`Design style: ${productInfo.designStyle}`);
   }
-
   if (productInfo.packagingHighlights && productInfo.packagingHighlights.length > 0) {
     productInfo.packagingHighlights.forEach(highlight => {
       if (highlight) parts.push(`- ${highlight}`);
     });
   }
+}
 
+/**
+ * 添加技术类字段（规格、净含量、营养成分、成分）
+ */
+function addTechnicalFields(parts: string[], productInfo: AnalysisResponse): void {
   if (productInfo.specifications) {
     parts.push(`Specifications: ${productInfo.specifications}`);
   }
-
   const params = productInfo.parameters;
   if (params.netContent) parts.push(`Net content: ${params.netContent}`);
-  if (params.ingredients) parts.push(`Ingredients: ${params.ingredients}`);
   if (params.nutrition) parts.push(`Nutrition: ${params.nutrition}`);
+  if (params.ingredients) parts.push(`Ingredients: ${params.ingredients}`);
+}
+
+/**
+ * 添加使用类字段（使用方法、保质期、储存）
+ */
+function addUsageFields(parts: string[], productInfo: AnalysisResponse): void {
+  const params = productInfo.parameters;
   if (params.usage) parts.push(`Usage: ${params.usage}`);
   if (params.shelfLife) parts.push(`Shelf life: ${params.shelfLife}`);
   if (params.storage) parts.push(`Storage: ${params.storage}`);
-
-  return parts.join('. ');
 }
 
 /**
@@ -478,46 +528,96 @@ function buildSceneDescriptionZh(productInfo: AnalysisResponse, posterType: stri
 }
 
 /**
- * 构建产品展示部分（中文版）
+ * 构建产品展示部分（中文版，根据海报类型筛选字段）
  */
-function buildProductDisplayZh(productInfo: AnalysisResponse): string {
+function buildProductDisplayZh(
+  productInfo: AnalysisResponse,
+  posterType: 'hero' | 'lifestyle' | 'process' | 'detail' | 'brand' | 'specs' | 'usage'
+): string {
   const parts: string[] = [];
-
   const productName = productInfo.productType.specific || productInfo.productType.category;
+
+  // 所有类型都包含的基础信息
   parts.push(`${productInfo.brandName.zh}${productInfo.brandName.en}${productName}包装设计。`);
 
+  // 根据海报类型筛选字段
+  switch (posterType) {
+    case 'hero':
+    case 'detail':
+    case 'brand':
+      // 视觉类海报：需要颜色、设计风格、包装亮点
+      addVisualFieldsZh(parts, productInfo);
+      break;
+
+    case 'lifestyle':
+      // 生活场景：只需要基础信息 + 设计风格（不要完整配色）
+      if (productInfo.designStyle) {
+        parts.push(`设计风格：${productInfo.designStyle}`);
+      }
+      if (productInfo.packagingHighlights && productInfo.packagingHighlights.length > 0) {
+        productInfo.packagingHighlights.slice(0, 2).forEach(highlight => {
+          if (highlight) parts.push(`- ${highlight}`);
+        });
+      }
+      break;
+
+    case 'specs':
+      // 产品参数：需要规格、营养成分、净含量
+      addTechnicalFieldsZh(parts, productInfo);
+      break;
+
+    case 'usage':
+      // 使用指南：需要使用方法、保质期、储存
+      addUsageFieldsZh(parts, productInfo);
+      break;
+
+    case 'process':
+      // 工艺技术：需要规格、成分、净含量
+      addTechnicalFieldsZh(parts, productInfo);
+      break;
+  }
+
+  return parts.join('。');
+}
+
+/**
+ * 添加视觉类字段（中文版）
+ */
+function addVisualFieldsZh(parts: string[], productInfo: AnalysisResponse): void {
+  // 颜色信息（简化：只输出主色）
   if (productInfo.colorScheme.primary && productInfo.colorScheme.primary.length > 0) {
     parts.push(`主色：${productInfo.colorScheme.primary.join('、')}`);
   }
-  if (productInfo.colorScheme.secondary && productInfo.colorScheme.secondary.length > 0) {
-    parts.push(`辅助色：${productInfo.colorScheme.secondary.join('、')}`);
-  }
-  if (productInfo.colorScheme.accent && productInfo.colorScheme.accent.length > 0) {
-    parts.push(`点缀色：${productInfo.colorScheme.accent.join('、')}`);
-  }
-
   if (productInfo.designStyle) {
     parts.push(`设计风格：${productInfo.designStyle}`);
   }
-
   if (productInfo.packagingHighlights && productInfo.packagingHighlights.length > 0) {
     productInfo.packagingHighlights.forEach(highlight => {
       if (highlight) parts.push(`- ${highlight}`);
     });
   }
+}
 
+/**
+ * 添加技术类字段（中文版）
+ */
+function addTechnicalFieldsZh(parts: string[], productInfo: AnalysisResponse): void {
   if (productInfo.specifications) {
     parts.push(`规格：${productInfo.specifications}`);
   }
-
   const params = productInfo.parameters;
   if (params.netContent) parts.push(`净含量：${params.netContent}`);
-  if (params.ingredients) parts.push(`成分：${params.ingredients}`);
   if (params.nutrition) parts.push(`营养成分：${params.nutrition}`);
+  if (params.ingredients) parts.push(`成分：${params.ingredients}`);
+}
+
+/**
+ * 添加使用类字段（中文版）
+ */
+function addUsageFieldsZh(parts: string[], productInfo: AnalysisResponse): void {
+  const params = productInfo.parameters;
   if (params.usage) parts.push(`用法：${params.usage}`);
   if (params.shelfLife) parts.push(`保质期：${params.shelfLife}`);
   if (params.storage) parts.push(`储存：${params.storage}`);
-
-  return parts.join('。');
 }
 
