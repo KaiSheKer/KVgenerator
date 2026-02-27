@@ -68,6 +68,7 @@ export interface StyleConfig {
   typography: string;
   textLayout: 'stacked' | 'parallel' | 'separated';
   aspectRatio: PosterAspectRatio;
+  promptStyle?: 'concise' | 'detailed'; // 提示词风格：简洁型(150-250字) 或 详细型(600-1000字)
 }
 
 export interface PosterOverlayPalette {

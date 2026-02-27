@@ -86,7 +86,7 @@ export default function PromptsPage() {
 
   const prompts = useMemo(() => {
     if (!editedProductInfo || !selectedStyle) return null;
-    return generatePrompts(editedProductInfo, selectedStyle);
+    return generatePrompts(editedProductInfo, selectedStyle, selectedStyle.promptStyle || 'concise');
   }, [editedProductInfo, selectedStyle]);
 
   const allPosterIds = useMemo(
