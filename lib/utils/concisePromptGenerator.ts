@@ -65,6 +65,9 @@ function buildConcisePromptEn(config: ConcisePromptConfig): string {
   // 产品名称
   const productName = productInfo.productType.specific || productInfo.productType.category;
 
+  // 提取或选择卖点（如果用户没提供subtitle，从AI分析中选择）
+  const effectiveSubtitle = subtitle || extractSellingPointForPosterType(productInfo, posterType);
+
   // 组装提示词 - 分部分结构
   const parts = [
     // 第1部分：基础信息
@@ -77,7 +80,7 @@ function buildConcisePromptEn(config: ConcisePromptConfig): string {
     buildProductDisplay(productInfo),
 
     // 第4部分：文案元素
-    `Text: ${buildTextElements(title, subtitle, style.textLayout)}.`,
+    `Text: ${buildTextElements(title, effectiveSubtitle, style.textLayout)}.`,
 
     // 第5部分：产品还原要求
     `Please strictly restore the product from the uploaded image, including all packaging details.`,
@@ -101,11 +104,14 @@ function buildConcisePromptZh(config: ConcisePromptConfig): string {
   const background = buildBackgroundSuggestionZh(posterType);
   const productName = productInfo.productType.specific || productInfo.productType.category;
 
+  // 提取或选择卖点（如果用户没提供subtitle，从AI分析中选择）
+  const effectiveSubtitle = subtitle || extractSellingPointForPosterType(productInfo, posterType);
+
   const parts = [
     `${aspectRatio}${orientation}海报，${visualStyle}风格，${lighting}。`,
     `${background}。${sceneKeywords.join('，')}。`,
     `画面中心：${buildMainSubjectZh(productName, posterType)}`,
-    `文案元素：${buildTextElementsZh(title, subtitle, style.textLayout)}。`,
+    `文案元素：${buildTextElementsZh(title, effectiveSubtitle, style.textLayout)}。`,
     `产品还原：请严格还原上传的产品图。`,
     `商业级品质，8k分辨率。`,
   ];
@@ -117,7 +123,10 @@ function buildConcisePromptZh(config: ConcisePromptConfig): string {
  * 构建版式配置（简洁型）
  */
 function buildConciseLayoutConfig(config: ConcisePromptConfig): string {
-  const { posterType, title, subtitle } = config;
+  const { productInfo, posterType, title, subtitle } = config;
+
+  // 提取或选择卖点
+  const effectiveSubtitle = subtitle || extractSellingPointForPosterType(productInfo, posterType);
 
   const lines: string[] = [];
 
@@ -129,14 +138,18 @@ function buildConciseLayoutConfig(config: ConcisePromptConfig): string {
     case 'hero':
       lines.push('Center: Main Product Hero Shot.');
       lines.push(`Bottom: Main Title '${title.zh}' / '${title.en}' (Large CN, Small EN).`);
-      if (subtitle) {
-        lines.push(`Bottom-Left: Subtitle '${subtitle.zh}' / '${subtitle.en}'.`);
+      if (effectiveSubtitle) {
+        lines.push(`Bottom-Left: Subtitle '${effectiveSubtitle.zh}' / '${effectiveSubtitle.en}'.`);
       }
       break;
 
     case 'lifestyle':
       lines.push('Middle-Right: Slogan vertically aligned.');
-      lines.push('Bottom Center: Glassmorphism bar with lifestyle text.');
+      if (effectiveSubtitle) {
+        lines.push(`Bottom Center: Glassmorphism bar with '${effectiveSubtitle.zh}' / '${effectiveSubtitle.en}'.`);
+      } else {
+        lines.push('Bottom Center: Glassmorphism bar with lifestyle text.');
+      }
       break;
 
     case 'detail':
@@ -501,4 +514,38 @@ function buildProductDisplayZh(productInfo: AnalysisResponse): string {
   return parts.join('。');
 }
 
+// ============================================================================
+// 卖点提取逻辑
+// ============================================================================
 
+/**
+ * 根据海报类型从AI分析中提取最相关的卖点
+ * 每张海报最多一个核心卖点词
+ */
+function extractSellingPointForPosterType(
+  productInfo: AnalysisResponse,
+  posterType: 'hero' | 'lifestyle' | 'process' | 'detail' | 'brand' | 'specs' | 'usage'
+): { zh: string; en: string } | undefined {
+  // 如果没有卖点数据，返回undefined
+  if (!productInfo.sellingPoints || productInfo.sellingPoints.length === 0) {
+    return undefined;
+  }
+
+  // 根据海报类型定义卖点索引选择策略
+  const posterTypeIndexMap: Record<string, number> = {
+    hero: 0,        // 主KV：第一个卖点（最核心定位）
+    lifestyle: 1,   // 生活场景：第二个卖点
+    process: 2,     // 工艺技术：第三个卖点
+    detail: 3,      // 细节特写：第四个卖点
+    brand: 4,       // 品牌故事：第五个卖点
+    specs: 5,       // 产品参数：第六个卖点
+    usage: 6,       // 使用指南：第七个卖点
+  };
+
+  const index = posterTypeIndexMap[posterType] || 0;
+
+  // 使用模运算确保索引不越界
+  const sellingPoint = productInfo.sellingPoints[index % productInfo.sellingPoints.length];
+
+  return sellingPoint;
+}

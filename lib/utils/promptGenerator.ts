@@ -150,7 +150,6 @@ function generateSinglePoster(
       posterType: type,
       title: posterTitle,
       subtitle: posterSubtitle,
-      sellingPoints: productInfo.sellingPoints,
     });
   }
 
