@@ -2,7 +2,6 @@
 
 import { AnalysisResponse, StyleConfig } from '@/contexts/AppContext';
 import { getSceneKeywords, getLightingHint, getPhotographyStyle } from './posterTypeConfig';
-import { refineSellingPoints } from './sellingPointRefiner';
 
 /**
  * 简洁型提示词生成器
@@ -66,9 +65,6 @@ function buildConcisePromptEn(config: ConcisePromptConfig): string {
   // 产品名称
   const productName = productInfo.productType.specific || productInfo.productType.category;
 
-  // 提取或选择卖点（如果用户没提供subtitle，从AI分析中选择）
-  const effectiveSubtitle = subtitle || extractSellingPointForPosterType(productInfo, posterType);
-
   // 组装提示词 - 分部分结构
   const parts = [
     // 第1部分：基础信息
@@ -80,8 +76,8 @@ function buildConcisePromptEn(config: ConcisePromptConfig): string {
     // 第3部分：产品展示（独立部分，用bullet points）
     buildProductDisplay(productInfo),
 
-    // 第4部分：文案元素
-    `Text: ${buildTextElements(title, effectiveSubtitle, style.textLayout)}.`,
+    // 第4部分：文案元素（如果用户没提供subtitle，让AI根据产品信息自己提炼）
+    `Text: ${buildTextElements(title, subtitle, style.textLayout, productInfo)}.`,
 
     // 第5部分：产品还原要求
     `Please strictly restore the product from the uploaded image, including all packaging details.`,
@@ -105,14 +101,11 @@ function buildConcisePromptZh(config: ConcisePromptConfig): string {
   const background = buildBackgroundSuggestionZh(posterType);
   const productName = productInfo.productType.specific || productInfo.productType.category;
 
-  // 提取或选择卖点（如果用户没提供subtitle，从AI分析中选择）
-  const effectiveSubtitle = subtitle || extractSellingPointForPosterType(productInfo, posterType);
-
   const parts = [
     `${aspectRatio}${orientation}海报，${visualStyle}风格，${lighting}。`,
     `${background}。${sceneKeywords.join('，')}。`,
     `画面中心：${buildMainSubjectZh(productName, posterType)}`,
-    `文案元素：${buildTextElementsZh(title, effectiveSubtitle, style.textLayout)}。`,
+    `文案元素：${buildTextElementsZh(title, subtitle, style.textLayout, productInfo)}。`,
     `产品还原：请严格还原上传的产品图。`,
     `商业级品质，8k分辨率。`,
   ];
@@ -124,10 +117,7 @@ function buildConcisePromptZh(config: ConcisePromptConfig): string {
  * 构建版式配置（简洁型）
  */
 function buildConciseLayoutConfig(config: ConcisePromptConfig): string {
-  const { productInfo, posterType, title, subtitle } = config;
-
-  // 提取或选择卖点
-  const effectiveSubtitle = subtitle || extractSellingPointForPosterType(productInfo, posterType);
+  const { posterType, title, subtitle } = config;
 
   const lines: string[] = [];
 
@@ -139,18 +129,14 @@ function buildConciseLayoutConfig(config: ConcisePromptConfig): string {
     case 'hero':
       lines.push('Center: Main Product Hero Shot.');
       lines.push(`Bottom: Main Title '${title.zh}' / '${title.en}' (Large CN, Small EN).`);
-      if (effectiveSubtitle) {
-        lines.push(`Bottom-Left: Subtitle '${effectiveSubtitle.zh}' / '${effectiveSubtitle.en}'.`);
+      if (subtitle) {
+        lines.push(`Bottom-Left: Subtitle '${subtitle.zh}' / '${subtitle.en}'.`);
       }
       break;
 
     case 'lifestyle':
       lines.push('Middle-Right: Slogan vertically aligned.');
-      if (effectiveSubtitle) {
-        lines.push(`Bottom Center: Glassmorphism bar with '${effectiveSubtitle.zh}' / '${effectiveSubtitle.en}'.`);
-      } else {
-        lines.push('Bottom Center: Glassmorphism bar with lifestyle text.');
-      }
+      lines.push('Bottom Center: Glassmorphism bar with lifestyle text.');
       break;
 
     case 'detail':
@@ -289,7 +275,8 @@ function buildMainSubjectZh(productName: string, posterType: string): string {
 function buildTextElements(
   title: { zh: string; en: string },
   subtitle?: { zh: string; en: string },
-  textLayout?: string
+  textLayout?: string,
+  productInfo?: AnalysisResponse
 ): string {
   const layoutFormat = textLayout === 'stacked'
     ? `Large Chinese '${title.zh}' stacked over English '${title.en}'`
@@ -301,13 +288,23 @@ function buildTextElements(
     return `${layoutFormat}. Subtitle: '${subtitle.zh}' / '${subtitle.en}'`;
   }
 
+  // 如果用户没提供subtitle，让AI根据产品信息自己提炼一个核心卖点
+  if (productInfo) {
+    const sellingPointsHint = productInfo.sellingPoints && productInfo.sellingPoints.length > 0
+      ? productInfo.sellingPoints.map(sp => sp.zh).join('、')
+      : productInfo.specifications || productInfo.designStyle || '';
+
+    return `${layoutFormat}. Generate a compelling 2-6 character subtitle in Chinese and English based on the product's key selling points: ${sellingPointsHint}`;
+  }
+
   return layoutFormat;
 }
 
 function buildTextElementsZh(
   title: { zh: string; en: string },
   subtitle?: { zh: string; en: string },
-  textLayout?: string
+  textLayout?: string,
+  productInfo?: AnalysisResponse
 ): string {
   const layoutFormat = textLayout === 'stacked'
     ? `大号中文'${title.zh}'堆叠在小号英文'${title.en}'上方`
@@ -317,6 +314,15 @@ function buildTextElementsZh(
 
   if (subtitle) {
     return `${layoutFormat}。副标题：'${subtitle.zh}' / '${subtitle.en}'`;
+  }
+
+  // 如果用户没提供subtitle，让AI根据产品信息自己提炼一个核心卖点
+  if (productInfo) {
+    const sellingPointsHint = productInfo.sellingPoints && productInfo.sellingPoints.length > 0
+      ? productInfo.sellingPoints.map(sp => sp.zh).join('、')
+      : productInfo.specifications || productInfo.designStyle || '';
+
+    return `${layoutFormat}。请根据产品核心卖点（${sellingPointsHint}）自主生成2-6个字的吸引人的中文副标题和英文副标题`;
   }
 
   return layoutFormat;
@@ -515,42 +521,3 @@ function buildProductDisplayZh(productInfo: AnalysisResponse): string {
   return parts.join('。');
 }
 
-// ============================================================================
-// 卖点提取逻辑
-// ============================================================================
-
-/**
- * 根据海报类型从AI分析中提取最相关的卖点
- * 每张海报最多一个核心卖点词
- * 经过广告化语言精炼
- */
-function extractSellingPointForPosterType(
-  productInfo: AnalysisResponse,
-  posterType: 'hero' | 'lifestyle' | 'process' | 'detail' | 'brand' | 'specs' | 'usage'
-): { zh: string; en: string } | undefined {
-  // 如果没有卖点数据，返回undefined
-  if (!productInfo.sellingPoints || productInfo.sellingPoints.length === 0) {
-    return undefined;
-  }
-
-  // 根据海报类型定义卖点索引选择策略
-  const posterTypeIndexMap: Record<string, number> = {
-    hero: 0,        // 主KV：第一个卖点（最核心定位）
-    lifestyle: 1,   // 生活场景：第二个卖点
-    process: 2,     // 工艺技术：第三个卖点
-    detail: 3,      // 细节特写：第四个卖点
-    brand: 4,       // 品牌故事：第五个卖点
-    specs: 5,       // 产品参数：第六个卖点
-    usage: 6,       // 使用指南：第七个卖点
-  };
-
-  const index = posterTypeIndexMap[posterType] || 0;
-
-  // 使用模运算确保索引不越界
-  const rawSellingPoint = productInfo.sellingPoints[index % productInfo.sellingPoints.length];
-
-  // 使用卖点精炼器进行广告化处理
-  const refinedSellingPoint = refineSellingPoints(productInfo, posterType, rawSellingPoint);
-
-  return refinedSellingPoint;
-}

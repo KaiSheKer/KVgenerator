@@ -2,7 +2,6 @@
 
 import { AnalysisResponse, StyleConfig } from '@/contexts/AppContext';
 import { getSceneKeywords, getLightingHint } from './posterTypeConfig';
-import { refineSellingPoints } from './sellingPointRefiner';
 
 /**
  * 详细型提示词生成器
@@ -51,10 +50,6 @@ function buildDetailedPromptEn(config: DetailedPromptConfig): string {
   const lighting = getLightingHint(posterType);
   const productName = productInfo.productType.specific || productInfo.productType.category;
 
-  // 提取或选择卖点
-  const effectiveSubtitle = subtitle || extractSellingPointForPosterTypeDetailed(productInfo, posterType);
-  const effectiveSellingPoints = effectiveSubtitle ? [effectiveSubtitle] : undefined;
-
   const sections: string[] = [];
 
   // 第一部分：开头定义
@@ -70,7 +65,7 @@ function buildDetailedPromptEn(config: DetailedPromptConfig): string {
   sections.push(buildDetailedProductRestore(productInfo, productName));
 
   // 第四部分：排版布局（详细）
-  sections.push(buildDetailedLayout(title, effectiveSubtitle, effectiveSellingPoints, style));
+  sections.push(buildDetailedLayout(title, subtitle, productInfo, style));
 
   // 第五部分：质感与光影
   sections.push(buildDetailedTextureAndLighting(style.visual, posterType));
@@ -92,10 +87,6 @@ function buildDetailedPromptZh(config: DetailedPromptConfig): string {
   const lighting = getLightingHint(posterType);
   const productName = productInfo.productType.specific || productInfo.productType.category;
 
-  // 提取或选择卖点
-  const effectiveSubtitle = subtitle || extractSellingPointForPosterTypeDetailed(productInfo, posterType);
-  const effectiveSellingPoints = effectiveSubtitle ? [effectiveSubtitle] : undefined;
-
   const sections: string[] = [];
 
   sections.push(
@@ -105,7 +96,7 @@ function buildDetailedPromptZh(config: DetailedPromptConfig): string {
 
   sections.push(buildDetailedSceneZh(posterType, productName, productInfo));
   sections.push(buildDetailedProductRestoreZh(productInfo, productName));
-  sections.push(buildDetailedLayoutZh(title, effectiveSubtitle, effectiveSellingPoints, style));
+  sections.push(buildDetailedLayoutZh(title, subtitle, productInfo, style));
   sections.push(buildDetailedTextureAndLightingZh(style.visual, posterType));
   sections.push('商业级品质，8k分辨率，电影级光影。');
 
@@ -196,7 +187,7 @@ function buildDetailedProductRestoreZh(productInfo: AnalysisResponse, productNam
 function buildDetailedLayout(
   title: { zh: string; en: string },
   subtitle?: { zh: string; en: string },
-  sellingPoints?: Array<{ zh: string; en: string }>,
+  productInfo?: AnalysisResponse,
   style?: StyleConfig
 ): string {
   const sections: string[] = ['**Layout (Bilingual Design):**'];
@@ -212,13 +203,15 @@ function buildDetailedLayout(
     sections.push(`\n- **Subtitle:**`);
     sections.push(`  - '${subtitle.zh}' / '${subtitle.en}'`);
     sections.push(`  - Thin line decoration above`);
-  }
+  } else if (productInfo) {
+    // 如果用户没提供subtitle，让AI根据产品信息自己提炼
+    const sellingPointsHint = productInfo.sellingPoints && productInfo.sellingPoints.length > 0
+      ? productInfo.sellingPoints.map(sp => sp.en).join(', ')
+      : productInfo.specifications || productInfo.designStyle || '';
 
-  if (sellingPoints && sellingPoints.length > 0) {
-    sections.push(`\n- **Key Points (Glassmorphism Card):**`);
-    sellingPoints.slice(0, 3).forEach((point, index) => {
-      sections.push(`  ${index + 1}. ${point.zh} / ${point.en}`);
-    });
+    sections.push(`\n- **Subtitle (Auto-generated):**`);
+    sections.push(`  - Generate a compelling 2-6 character subtitle based on: ${sellingPointsHint}`);
+    sections.push(`  - Thin line decoration above`);
   }
 
   return sections.join('\n');
@@ -227,7 +220,7 @@ function buildDetailedLayout(
 function buildDetailedLayoutZh(
   title: { zh: string; en: string },
   subtitle?: { zh: string; en: string },
-  sellingPoints?: Array<{ zh: string; en: string }>,
+  productInfo?: AnalysisResponse,
   style?: StyleConfig
 ): string {
   const sections: string[] = ['**排版布局（中英文双语设计）：**'];
@@ -243,13 +236,15 @@ function buildDetailedLayoutZh(
     sections.push(`\n- **副标题：**`);
     sections.push(`  - '${subtitle.zh}' / '${subtitle.en}'`);
     sections.push(`  - 上方有细线装饰`);
-  }
+  } else if (productInfo) {
+    // 如果用户没提供subtitle，让AI根据产品信息自己提炼
+    const sellingPointsHint = productInfo.sellingPoints && productInfo.sellingPoints.length > 0
+      ? productInfo.sellingPoints.map(sp => sp.zh).join('、')
+      : productInfo.specifications || productInfo.designStyle || '';
 
-  if (sellingPoints && sellingPoints.length > 0) {
-    sections.push(`\n- **关键要点（玻璃拟态卡片）：**`);
-    sellingPoints.slice(0, 3).forEach((point, index) => {
-      sections.push(`  ${index + 1}. ${point.zh} / ${point.en}`);
-    });
+    sections.push(`\n- **副标题（自主生成）：**`);
+    sections.push(`  - 根据产品核心卖点（${sellingPointsHint}）自主生成2-6个字的吸引人的副标题`);
+    sections.push(`  - 上方有细线装饰`);
   }
 
   return sections.join('\n');
@@ -325,10 +320,7 @@ function buildDetailedNegative(posterType: string): string {
  * 构建详细型版式配置
  */
 function buildDetailedLayoutConfig(config: DetailedPromptConfig): string {
-  const { productInfo, posterType, title, subtitle } = config;
-
-  // 提取或选择卖点
-  const effectiveSubtitle = subtitle || extractSellingPointForPosterTypeDetailed(productInfo, posterType);
+  const { posterType, title, subtitle } = config;
 
   const lines: string[] = ['\n**版式配置**\n'];
 
@@ -338,25 +330,21 @@ function buildDetailedLayoutConfig(config: DetailedPromptConfig): string {
     case 'hero':
       lines.push('Center: Main Product Hero Shot.');
       lines.push(`Bottom: Main Title '${title.zh}' (Large) stacked over '${title.en}' (Small).`);
-      if (effectiveSubtitle) {
-        lines.push(`Below Title: Subtitle '${effectiveSubtitle.zh}' / '${effectiveSubtitle.en}' with thin line decoration.`);
+      if (subtitle) {
+        lines.push(`Below Title: Subtitle '${subtitle.zh}' / '${subtitle.en}' with thin line decoration.`);
       }
       break;
 
     case 'lifestyle':
       lines.push('Middle-Right: Slogan vertically aligned.');
-      if (effectiveSubtitle) {
-        lines.push(`Bottom Center: Glassmorphism bar with '${effectiveSubtitle.zh}' / '${effectiveSubtitle.en}'.`);
-      } else {
-        lines.push('Bottom Center: Glassmorphism bar.');
-      }
+      lines.push('Bottom Center: Glassmorphism bar.');
       break;
 
     case 'detail':
       lines.push('Center-focused composition.');
       lines.push(`Top: Large Bold '${title.zh}' with smaller '${title.en}' below.`);
-      if (effectiveSubtitle) {
-        lines.push(`Bottom: Subtitle '${effectiveSubtitle.zh}' / '${effectiveSubtitle.en}'.`);
+      if (subtitle) {
+        lines.push(`Bottom: Subtitle '${subtitle.zh}' / '${subtitle.en}'.`);
       }
       break;
   }
@@ -381,46 +369,6 @@ function resolveVisualStyle(visual: string): string {
   return styleMap[visual] || styleMap.magazine;
 }
 
-// ============================================================================
-// 卖点提取逻辑
-// ============================================================================
-
-/**
- * 根据海报类型从AI分析中提取最相关的卖点（详细型）
- * 每张海报最多一个核心卖点词
- * 经过广告化语言精炼
- */
-function extractSellingPointForPosterTypeDetailed(
-  productInfo: AnalysisResponse,
-  posterType: 'hero' | 'lifestyle' | 'process' | 'detail' | 'brand' | 'specs' | 'usage'
-): { zh: string; en: string } | undefined {
-  // 如果没有卖点数据，返回undefined
-  if (!productInfo.sellingPoints || productInfo.sellingPoints.length === 0) {
-    return undefined;
-  }
-
-  // 根据海报类型定义卖点索引选择策略
-  const posterTypeIndexMap: Record<string, number> = {
-    hero: 0,        // 主KV：第一个卖点（最核心定位）
-    lifestyle: 1,   // 生活场景：第二个卖点
-    process: 2,     // 工艺技术：第三个卖点
-    detail: 3,      // 细节特写：第四个卖点
-    brand: 4,       // 品牌故事：第五个卖点
-    specs: 5,       // 产品参数：第六个卖点
-    usage: 6,       // 使用指南：第七个卖点
-  };
-
-  const index = posterTypeIndexMap[posterType] || 0;
-
-  // 使用模运算确保索引不越界
-  const rawSellingPoint = productInfo.sellingPoints[index % productInfo.sellingPoints.length];
-
-  // 使用卖点精炼器进行广告化处理
-  const refinedSellingPoint = refineSellingPoints(productInfo, posterType, rawSellingPoint);
-
-  return refinedSellingPoint;
-}
-
 function resolveVisualStyleZh(visual: string): string {
   const styleMap: Record<string, string> = {
     magazine: '现代奢华杂志编辑',
@@ -434,3 +382,4 @@ function resolveVisualStyleZh(visual: string): string {
   return styleMap[visual] || styleMap.magazine;
 }
 
+// ============================================================================
