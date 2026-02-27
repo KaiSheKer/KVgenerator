@@ -2,6 +2,7 @@
 
 import { AnalysisResponse, StyleConfig } from '@/contexts/AppContext';
 import { getSceneKeywords, getLightingHint } from './posterTypeConfig';
+import { refineSellingPoints } from './sellingPointRefiner';
 
 /**
  * 详细型提示词生成器
@@ -387,6 +388,7 @@ function resolveVisualStyle(visual: string): string {
 /**
  * 根据海报类型从AI分析中提取最相关的卖点（详细型）
  * 每张海报最多一个核心卖点词
+ * 经过广告化语言精炼
  */
 function extractSellingPointForPosterTypeDetailed(
   productInfo: AnalysisResponse,
@@ -411,9 +413,12 @@ function extractSellingPointForPosterTypeDetailed(
   const index = posterTypeIndexMap[posterType] || 0;
 
   // 使用模运算确保索引不越界
-  const sellingPoint = productInfo.sellingPoints[index % productInfo.sellingPoints.length];
+  const rawSellingPoint = productInfo.sellingPoints[index % productInfo.sellingPoints.length];
 
-  return sellingPoint;
+  // 使用卖点精炼器进行广告化处理
+  const refinedSellingPoint = refineSellingPoints(productInfo, posterType, rawSellingPoint);
+
+  return refinedSellingPoint;
 }
 
 function resolveVisualStyleZh(visual: string): string {
