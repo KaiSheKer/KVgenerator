@@ -313,29 +313,54 @@ function buildTextElementsZh(
 // ============================================================================
 
 /**
- * 构建场景描述（使用designStyle, brandTone, packagingHighlights）
+ * 构建场景描述（根据海报类型关键词决定核心逻辑）
+ * 关键词是场景描述的核心指令，决定了产品展示方式、视角、构图
  */
 function buildSceneDescription(productInfo: AnalysisResponse, posterType: string): string {
+  const productName = productInfo.productType.specific || productInfo.productType.category;
   const designStyle = productInfo.designStyle || '';
   const brandTone = productInfo.brandTone || '';
 
-  const scenes: Record<string, string> = {
-    hero: `Minimalist ${designStyle} style, ${brandTone} atmosphere. Clean composition with negative space.`,
+  // 根据海报类型的关键词决定场景描述的核心逻辑
+  switch (posterType) {
+    case 'hero':
+      // 关键词: single hero object, center composition, clean gradient backdrop
+      // → 场景核心：单个、居中、完美展示、严格还原
+      return `The central focus is a single, perfect ${productName}. Center composition with clean gradient backdrop. ${productName} is shown exactly as in the uploaded product image. ${designStyle} style, ${brandTone} atmosphere. Clean composition with negative space.`;
 
-    lifestyle: `${designStyle} lifestyle photography showing ${productInfo.productType.specific} in authentic daily life context. ${brandTone} mood. Surrounding elements suggest everyday use.`,
+    case 'lifestyle':
+      // 关键词: daily life scene, natural usage context, authentic atmosphere
+      // → 场景核心：产品在使用状态、日常生活环境、真实氛围
+      return `${designStyle} lifestyle photography showing ${productName} in authentic daily life context. The product is shown in its natural usage state within a realistic setting - on a table, counter, or in hand. ${brandTone} mood. Surrounding elements suggest everyday use without cluttering the scene.`;
 
-    detail: `Macro photography focus on ${productInfo.productType.specific} details. ${designStyle} aesthetic with controlled lighting to emphasize texture and craftsmanship.`,
+    case 'detail':
+      // 关键词: macro close-up, texture focus, shallow depth of field, detail emphasis
+      // → 场景核心：极端微距、聚焦纹理、浅景深
+      return `Macro photography focus on ${productName} details. Extreme close-up showing microscopic texture, material surface, and product craftsmanship. Shallow depth of field with smooth bokeh background. ${designStyle} aesthetic with controlled lighting to emphasize texture and fine details.`;
 
-    process: `Technical visualization showing ${productInfo.productType.specific} features. ${designStyle} illustration style with floating elements or annotations.`,
+    case 'process':
+      // 关键词: technical visualization, process illustration, conceptual scene
+      // → 场景核心：技术可视化、内部结构、概念化场景
+      return `Technical visualization of ${productName} features. Conceptual illustration style showing internal structure, manufacturing process, or key selling points. ${designStyle} aesthetic with floating elements or annotations to reveal product details.`;
 
-    brand: `${brandTone} brand storytelling scene. Cinematic atmosphere with ${designStyle} aesthetics. Background elements convey brand values.`,
+    case 'brand':
+      // 关键词: brand storytelling, emotional atmosphere, cinematic scene
+      // → 场景核心：品牌故事、情感氛围、电影感
+      return `${brandTone} brand storytelling scene. Cinematic atmosphere with ${designStyle} aesthetics conveying brand values and heritage. Background elements tell the brand story - origin, craftsmanship, or philosophy. Emotional, aspirational mood.`;
 
-    specs: `Technical infographic style, clean ${designStyle} layout. Top-down view showing product proportions with minimal annotations.`,
+    case 'specs':
+      // 关键词: technical data, structured information, clean infographic
+      // → 场景核心：俯视图、数据可视化、结构化信息
+      return `Technical infographic style, clean ${designStyle} layout. Top-down view showing ${productName} with structured information and data. Clean lines pointing to different parts of the product. Minimalist styling with clear data visualization.`;
 
-    usage: `Instructional demonstration style, clear ${designStyle} aesthetics. Step-by-step flow showing how to use ${productInfo.productType.specific}.`,
-  };
+    case 'usage':
+      // 关键词: step-by-step flow, instructional icons, clear process
+      // → 场景核心：分步流程、教学图标、清晰过程
+      return `Instructional demonstration style showing how to use ${productName}. Clear ${designStyle} aesthetics with step-by-step flow. Simple icons or numbered steps. Clean layout with the product as the focal point, making usage easy to understand.`;
 
-  return scenes[posterType] || scenes.hero;
+    default:
+      return `${productName} in ${designStyle} style. ${brandTone} atmosphere.`;
+  }
 }
 
 /**
@@ -383,29 +408,53 @@ function buildProductDisplay(productInfo: AnalysisResponse): string {
 }
 
 /**
- * 构建场景描述（中文版）
+ * 构建场景描述（中文版，根据海报类型关键词决定核心逻辑）
  */
 function buildSceneDescriptionZh(productInfo: AnalysisResponse, posterType: string): string {
+  const productName = productInfo.productType.specific || productInfo.productType.category;
   const designStyle = productInfo.designStyle || '';
   const brandTone = productInfo.brandTone || '';
 
-  const scenes: Record<string, string> = {
-    hero: `极简${designStyle}风格，${brandTone}氛围。干净构图，大量留白。`,
+  // 根据海报类型的关键词决定场景描述的核心逻辑
+  switch (posterType) {
+    case 'hero':
+      // 关键词: single hero object, center composition
+      // → 场景核心：单个、居中、完美展示
+      return `画面中心：单个完美的${productName}，居中构图。干净渐变背景。${productName}与上传的产品图完全一致。${designStyle}风格，${brandTone}氛围。干净构图，大量留白。`;
 
-    lifestyle: `${designStyle}生活摄影风格，展示${productInfo.productType.specific}在真实日常生活场景中。${brandTone}情绪。周围元素暗示日常使用。`,
+    case 'lifestyle':
+      // 关键词: daily life scene, natural usage context
+      // → 场景核心：产品在使用状态、日常生活环境
+      return `${designStyle}生活摄影风格，展示${productName}在真实日常生活场景中。产品处于自然使用状态，放置在桌子、台面或手中。${brandTone}情绪。周围元素暗示日常使用，不杂乱。`;
 
-    detail: `微距摄影聚焦${productInfo.productType.specific}细节。${designStyle}美学，受控光照强调纹理和工艺。`,
+    case 'detail':
+      // 关键词: macro close-up, texture focus, shallow depth of field
+      // → 场景核心：极端微距、聚焦纹理
+      return `微距摄影聚焦${productName}细节。极端特写展示微观纹理、材质表面和产品工艺。浅景深，背景虚化。${designStyle}美学，受控光照强调质感和精细细节。`;
 
-    process: `技术可视化展示${productInfo.productType.specific}特点。${designStyle}插图风格，带有浮动元素或注释。`,
+    case 'process':
+      // 关键词: technical visualization, conceptual scene
+      // → 场景核心：技术可视化、内部结构
+      return `${productName}的技术可视化。概念插图风格，展示内部结构、制造工艺或核心卖点。${designStyle}美学，带有浮动元素或注释，展现产品细节。`;
 
-    brand: `${brandTone}品牌故事场景。电影感氛围，${designStyle}美学。背景元素传达品牌价值。`,
+    case 'brand':
+      // 关键词: brand storytelling, emotional atmosphere
+      // → 场景核心：品牌故事、情感氛围
+      return `${brandTone}品牌故事场景。电影感氛围，${designStyle}美学，传达品牌价值和传承。背景元素讲述品牌故事——产地、工艺或理念。情感化、令人向往的意境。`;
 
-    specs: `技术信息图表风格，干净${designStyle}布局。俯视图展示产品比例，极简注释。`,
+    case 'specs':
+      // 关键词: technical data, structured information, clean infographic
+      // → 场景核心：俯视图、数据可视化
+      return `技术信息图表风格，干净${designStyle}布局。${productName}的俯视图，展示产品比例。结构化信息和数据可视化，清晰的线条指向产品不同部分。极简风格，清晰可见。`;
 
-    usage: `教学演示风格，清晰${designStyle}美学。分步流程展示如何使用${productInfo.productType.specific}。`,
-  };
+    case 'usage':
+      // 关键词: step-by-step flow, instructional icons
+      // → 场景核心：分步流程、教学图标
+      return `教学演示风格，展示如何使用${productName}。清晰${designStyle}美学，分步流程。简单图标或编号步骤，干净布局，产品为焦点，让使用方法清晰易懂。`;
 
-  return scenes[posterType] || scenes.hero;
+    default:
+      return `${productName}在${designStyle}风格中，${brandTone}氛围。`;
+  }
 }
 
 /**
