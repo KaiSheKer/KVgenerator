@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const dataUrl = await generatePoster({
+    const result = await generatePoster({
       prompt: body.prompt,
       negative: body.negative,
       width: body.width,
@@ -34,7 +34,11 @@ export async function POST(request: NextRequest) {
       enforceHardConstraints: body.enforceHardConstraints,
     });
 
-    return NextResponse.json({ dataUrl });
+    return NextResponse.json({
+      dataUrl: result.dataUrl,
+      usedFlashFallback: result.fallbackUsed,
+      usedImageModel: result.usedModel,
+    });
   } catch (error) {
     return NextResponse.json(
       {

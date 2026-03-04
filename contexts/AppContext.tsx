@@ -117,6 +117,7 @@ export interface GeneratedPoster {
   url: string;
   status: 'completed' | 'failed';
   rawUrl?: string;
+  usedFlashFallback?: boolean;
   overlayApplied?: boolean;
   generationMode?: GenerationPipelineMode;
   promptSource?: string;

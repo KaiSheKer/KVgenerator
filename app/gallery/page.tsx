@@ -312,7 +312,7 @@ export default function GalleryPage() {
       'Keep product identity and composition continuity with the reference image. Apply only the requested visual changes.',
     ].join('\n\n');
 
-    const refinedUrl = await generatePoster({
+    const refinedResult = await generatePoster({
       prompt: refinedPrompt,
       negative: prompt.runtimeNegative || prompt.negative,
       width,
@@ -325,7 +325,7 @@ export default function GalleryPage() {
     const nextVersionId = `v${baseVersions.length + 1}`;
     const nextVersion: GeneratedPosterVersion = {
       id: nextVersionId,
-      url: refinedUrl,
+      url: refinedResult.dataUrl,
       source: 'refine',
       note: instruction,
       createdAt: Date.now(),
@@ -336,7 +336,8 @@ export default function GalleryPage() {
       poster.id === selected.id
         ? {
             ...poster,
-            url: refinedUrl,
+            url: refinedResult.dataUrl,
+            usedFlashFallback: poster.usedFlashFallback || refinedResult.usedFlashFallback,
             versions: nextVersions,
             activeVersionId: nextVersionId,
           }

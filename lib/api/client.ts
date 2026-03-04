@@ -10,6 +10,12 @@ interface GenerationRequest {
   enforceHardConstraints?: boolean;
 }
 
+export interface GenerationResponse {
+  dataUrl: string;
+  usedFlashFallback: boolean;
+  usedImageModel?: string;
+}
+
 const GENERATE_TIMEOUT_MS = 150000;
 const GENERATE_MAX_NETWORK_RETRIES = 2;
 const ANALYZE_TIMEOUT_MS = 45000;
@@ -92,7 +98,7 @@ export async function analyzeProduct(imageBase64: string): Promise<AnalysisRespo
   throw new Error('Analyze request failed');
 }
 
-export async function generatePoster(request: GenerationRequest): Promise<string> {
+export async function generatePoster(request: GenerationRequest): Promise<GenerationResponse> {
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= GENERATE_MAX_NETWORK_RETRIES; attempt += 1) {
@@ -115,12 +121,20 @@ export async function generatePoster(request: GenerationRequest): Promise<string
         throw new Error(errorData.error || `Generate request failed: ${response.status}`);
       }
 
-      const data = (await response.json()) as { dataUrl?: string };
+      const data = (await response.json()) as {
+        dataUrl?: string;
+        usedFlashFallback?: boolean;
+        usedImageModel?: string;
+      };
       if (!data.dataUrl) {
         throw new Error('No image generated');
       }
 
-      return data.dataUrl;
+      return {
+        dataUrl: data.dataUrl,
+        usedFlashFallback: data.usedFlashFallback === true,
+        usedImageModel: typeof data.usedImageModel === 'string' ? data.usedImageModel : undefined,
+      };
     } catch (error) {
       clearTimeout(timer);
       lastError = error;
@@ -148,9 +162,12 @@ export async function generatePoster(request: GenerationRequest): Promise<string
 // 模拟生成函数,用于开发测试
 export async function generatePosterMock(
   request: GenerationRequest
-): Promise<string> {
+): Promise<GenerationResponse> {
   await new Promise(resolve => setTimeout(resolve, 2000));
   const width = request.width || 720;
   const height = request.height || 1280;
-  return `https://via.placeholder.com/${width}x${height}/000000/FFFFFF?text=Poster+Generated`;
+  return {
+    dataUrl: `https://via.placeholder.com/${width}x${height}/000000/FFFFFF?text=Poster+Generated`,
+    usedFlashFallback: false,
+  };
 }

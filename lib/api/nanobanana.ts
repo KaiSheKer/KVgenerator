@@ -39,6 +39,12 @@ interface GeminiApiErrorPayload {
   };
 }
 
+interface GenerationResult {
+  dataUrl: string;
+  usedModel: string;
+  fallbackUsed: boolean;
+}
+
 const DEFAULT_ANALYSIS_MODEL = 'gemini-3-flash-preview';
 const DEFAULT_IMAGE_MODEL = 'gemini-3-pro-image-preview';
 const DEFAULT_FLASH_FALLBACK_MODEL = 'gemini-2.5-flash-image';
@@ -47,7 +53,7 @@ const MAX_CONSTRAINT_RETRIES = 2;
 
 export async function generatePoster(
   request: GenerationRequest
-): Promise<string> {
+): Promise<GenerationResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
@@ -106,7 +112,11 @@ export async function generatePoster(
           retryCount,
           constraintFailReasons,
         });
-        return imageResult.dataUrl;
+        return {
+          dataUrl: imageResult.dataUrl,
+          usedModel: imageResult.usedModel,
+          fallbackUsed,
+        };
       }
 
       const audit = await verifyPosterHardConstraints({
@@ -123,7 +133,11 @@ export async function generatePoster(
           retryCount,
           constraintFailReasons,
         });
-        return imageResult.dataUrl;
+        return {
+          dataUrl: imageResult.dataUrl,
+          usedModel: imageResult.usedModel,
+          fallbackUsed,
+        };
       }
 
       const reason = audit.reason || 'unknown hard-constraint violation';

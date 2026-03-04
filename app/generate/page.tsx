@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { getGenerationNotices } from '@/lib/utils/generationFallbackNotice';
 import type {
   GeneratedPoster,
   GeneratedPosterVersion,
@@ -38,6 +39,8 @@ interface PosterProgress {
   status: 'pending' | 'generating' | 'completed' | 'failed';
   url?: string;
   rawUrl?: string;
+  usedFlashFallback?: boolean;
+  highDemandStatus?: 'retrying' | 'failed';
   error?: string;
   overlayApplied?: boolean;
   generationMode?: GenerationPipelineMode;
@@ -222,6 +225,10 @@ export default function GeneratePage() {
     () => postersProgress.some((poster) => poster.status === 'generating'),
     [postersProgress]
   );
+  const generationNotices = useMemo(
+    () => getGenerationNotices(postersProgress),
+    [postersProgress]
+  );
 
   const styleDirectionPrimary =
     editedProductInfo?.styleDirection?.primary ||
@@ -291,6 +298,7 @@ export default function GeneratePage() {
             url: poster.url as string,
             status: 'completed',
             rawUrl: poster.rawUrl,
+            usedFlashFallback: poster.usedFlashFallback,
             overlayApplied: poster.overlayApplied,
             generationMode: poster.generationMode,
             promptSource: poster.promptSource,
@@ -397,7 +405,9 @@ export default function GeneratePage() {
   );
 
   const executeSinglePoster = useCallback(
-    async (poster: PosterPrompt): Promise<PromptExecutionPayload & { finalUrl: string; rawUrl?: string }> => {
+    async (poster: PosterPrompt): Promise<
+      PromptExecutionPayload & { finalUrl: string; rawUrl?: string; usedFlashFallback: boolean }
+    > => {
       const { width, height } = getPosterSize(selectedStyle?.aspectRatio);
       const candidateCount = resolveCandidateCount(selectedQualityMode);
       const promptExecution = resolvePromptExecution(poster);
@@ -408,6 +418,7 @@ export default function GeneratePage() {
 
       let bestRawUrl = '';
       let bestScore = Number.NEGATIVE_INFINITY;
+      let bestUsedFlashFallback = false;
       let lastCandidateErrors: string[] = [];
       let capacityRetryAttempt = 0;
       const maxCapacityRetries = 2;
@@ -426,11 +437,14 @@ export default function GeneratePage() {
               referenceImage: uploadedImage?.preview,
               enforceHardConstraints: true,
             };
-            const candidateUrl = useMock ? await generatePosterMock(request) : await generatePoster(request);
-            const score = scoreCandidate(candidateUrl, poster.id, candidateIndex);
+            const candidateResult = useMock
+              ? await generatePosterMock(request)
+              : await generatePoster(request);
+            const score = scoreCandidate(candidateResult.dataUrl, poster.id, candidateIndex);
             if (!bestRawUrl || score > bestScore) {
-              bestRawUrl = candidateUrl;
+              bestRawUrl = candidateResult.dataUrl;
               bestScore = score;
+              bestUsedFlashFallback = candidateResult.usedFlashFallback;
             }
           } catch (candidateError) {
             const errorMessage = candidateError instanceof Error ? candidateError.message : '未知错误';
@@ -463,6 +477,10 @@ export default function GeneratePage() {
         setGlobalMessage(
           `海报 ${poster.id} 服务高峰，等待 ${Math.ceil(waitMs / 1000)} 秒后重试...`
         );
+        updatePoster(poster.id, (item) => ({
+          ...item,
+          highDemandStatus: 'retrying',
+        }));
         await sleep(waitMs);
         capacityRetryAttempt += 1;
       }
@@ -472,6 +490,10 @@ export default function GeneratePage() {
           lastCandidateErrors.length > 0 &&
           lastCandidateErrors.every((message) => isCapacityPeakError(new Error(message)));
         if (allCapacityErrors) {
+          updatePoster(poster.id, (item) => ({
+            ...item,
+            highDemandStatus: 'failed',
+          }));
           throw new Error('模型高峰拥塞，当前海报暂时生成失败。请 30-60 秒后重试。');
         }
         const firstError = lastCandidateErrors[0] || '未获取到可用候选图';
@@ -482,6 +504,7 @@ export default function GeneratePage() {
         ...promptExecution,
         finalUrl: bestRawUrl,
         rawUrl: bestRawUrl,
+        usedFlashFallback: bestUsedFlashFallback,
       };
     },
     [
@@ -515,6 +538,7 @@ export default function GeneratePage() {
       updatePoster(posterId, (item) => ({
         ...item,
         status: 'generating',
+        highDemandStatus: undefined,
         error: undefined,
       }));
       setGlobalMessage(`正在生成海报 ${poster.id} - ${poster.title}...`);
@@ -539,6 +563,8 @@ export default function GeneratePage() {
               status: 'completed',
               url: generated.finalUrl,
               rawUrl: generated.rawUrl,
+              usedFlashFallback: item.usedFlashFallback || generated.usedFlashFallback,
+              highDemandStatus: undefined,
               overlayApplied: false,
               generationMode: selectedGenerationMode,
               promptSource: generated.promptSource,
@@ -553,6 +579,8 @@ export default function GeneratePage() {
             status: 'completed',
             url: generated.finalUrl,
             rawUrl: generated.rawUrl,
+            usedFlashFallback: generated.usedFlashFallback,
+            highDemandStatus: undefined,
             overlayApplied: false,
             generationMode: selectedGenerationMode,
             promptSource: generated.promptSource,
@@ -575,6 +603,8 @@ export default function GeneratePage() {
         updatePoster(posterId, (item) => ({
           ...item,
           status: 'failed',
+          highDemandStatus:
+            error instanceof Error && error.message.includes('模型高峰拥塞') ? 'failed' : item.highDemandStatus,
           error: error instanceof Error ? error.message : '未知错误',
         }));
         return false;
@@ -686,7 +716,7 @@ export default function GeneratePage() {
         'Keep product identity and composition continuity with the reference image. Apply only the requested visual changes.',
       ].join('\n\n');
 
-      const refinedUrl = useMock
+      const refinedResult = useMock
         ? await generatePosterMock({
             prompt: refinedPrompt,
             negative: promptExecution.negative,
@@ -711,7 +741,7 @@ export default function GeneratePage() {
           const nextVersionId = `v${baseVersions.length + 1}`;
           const nextVersion: GeneratedPosterVersion = {
             id: nextVersionId,
-            url: refinedUrl,
+            url: refinedResult.dataUrl,
             source: 'refine',
             note: instruction,
             createdAt: Date.now(),
@@ -719,7 +749,8 @@ export default function GeneratePage() {
           return {
             ...poster,
             status: 'completed',
-            url: refinedUrl,
+            url: refinedResult.dataUrl,
+            usedFlashFallback: poster.usedFlashFallback || refinedResult.usedFlashFallback,
             versions: [...baseVersions, nextVersion],
             activeVersionId: nextVersionId,
           };
@@ -1011,6 +1042,14 @@ export default function GeneratePage() {
         <div className="mt-3 space-y-2">
           <Progress value={progressValue} className="h-2" />
           <p className="text-xs text-muted-foreground">{globalMessage}</p>
+          {generationNotices.map((notice) => (
+            <div
+              key={notice}
+              className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
+            >
+              {notice}
+            </div>
+          ))}
         </div>
       </Card>
 
