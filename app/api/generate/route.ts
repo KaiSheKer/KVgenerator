@@ -9,6 +9,8 @@ interface GenerationRequest {
   width?: number;
   height?: number;
   referenceImage?: string;
+  enforceNoText?: boolean;
+  enforceHardConstraints?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -22,15 +24,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const dataUrl = await generatePoster({
+    const result = await generatePoster({
       prompt: body.prompt,
       negative: body.negative,
       width: body.width,
       height: body.height,
       referenceImage: body.referenceImage,
+      enforceNoText: body.enforceNoText,
+      enforceHardConstraints: body.enforceHardConstraints,
     });
 
-    return NextResponse.json({ dataUrl });
+    return NextResponse.json({
+      dataUrl: result.dataUrl,
+      usedFlashFallback: result.fallbackUsed,
+      usedImageModel: result.usedModel,
+    });
   } catch (error) {
     return NextResponse.json(
       {

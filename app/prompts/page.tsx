@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { generatePrompts } from '@/lib/utils/promptGenerator';
 import { cn } from '@/lib/utils';
-import type { GenerationQualityMode } from '@/contexts/AppContext';
+import type {
+  GenerationQualityMode,
+} from '@/contexts/AppContext';
 
 type PosterSelectionMode = 'single' | 'multi' | 'all';
 
@@ -31,6 +33,11 @@ const QUALITY_MODE_OPTIONS: Array<{
   { value: 'balanced', label: '平衡', description: '每张生成 2 个候选，效果与速度平衡', candidates: 2 },
   { value: 'quality', label: '精品', description: '每张生成 3 个候选，默认演示推荐', candidates: 3 },
 ];
+
+const FIXED_GENERATION_MODE = 'one_pass_layout_anchor' as const;
+const FIXED_GENERATION_MODE_LABEL = '一步成图（短+锚点）';
+
+const QUICK_VALIDATE_POSTER_IDS = ['01', '04', '09'];
 
 function resolveSelectionState(
   posterIds: string[],
@@ -74,11 +81,12 @@ export default function PromptsPage() {
     setGeneratedPrompts,
     setSelectedPosterIds,
     setSelectedQualityMode,
+    setSelectedGenerationMode,
   } = useAppContext();
 
   const prompts = useMemo(() => {
     if (!editedProductInfo || !selectedStyle) return null;
-    return generatePrompts(editedProductInfo, selectedStyle);
+    return generatePrompts(editedProductInfo, selectedStyle, selectedStyle.promptStyle || 'concise');
   }, [editedProductInfo, selectedStyle]);
 
   const allPosterIds = useMemo(
@@ -116,10 +124,12 @@ export default function PromptsPage() {
       return;
     }
 
+    setSelectedGenerationMode(FIXED_GENERATION_MODE);
+
     if (prompts) {
       setGeneratedPrompts(prompts);
     }
-  }, [editedProductInfo, prompts, router, selectedStyle, setGeneratedPrompts]);
+  }, [editedProductInfo, prompts, selectedStyle, router, setGeneratedPrompts, setSelectedGenerationMode]);
 
   if (!editedProductInfo || !selectedStyle || !prompts) {
     return null;
@@ -127,7 +137,12 @@ export default function PromptsPage() {
 
   const safeSelectedIndex = Math.min(selectedIndex, prompts.posters.length - 1);
   const currentPrompt = prompts.posters[safeSelectedIndex];
-  const currentPromptEn = editablePromptEnById[currentPrompt.id] ?? currentPrompt.promptEn;
+  const currentPromptBaseEn =
+    currentPrompt.runtimePromptAnchorEn ||
+    currentPrompt.runtimePromptEn ||
+    currentPrompt.promptEn;
+  const currentPromptEn = editablePromptEnById[currentPrompt.id] ?? currentPromptBaseEn;
+  const currentNegative = currentPrompt.runtimeNegative || currentPrompt.negative;
 
   const handleCopy = (text: string, field: 'zh' | 'en') => {
     navigator.clipboard.writeText(text);
@@ -173,6 +188,20 @@ export default function PromptsPage() {
     }
   };
 
+  const applyQuickValidationPreset = () => {
+    const presetIds = QUICK_VALIDATE_POSTER_IDS.filter((id) =>
+      allPosterIds.includes(id)
+    );
+    if (presetIds.length === 0) return;
+
+    setSelectionMode('multi');
+    setLocalSelectedPosterIds(presetIds);
+    const firstPresetIndex = prompts.posters.findIndex(
+      (poster) => poster.id === presetIds[0]
+    );
+    setSelectedIndex(firstPresetIndex >= 0 ? firstPresetIndex : 0);
+  };
+
   const togglePosterSelection = (posterId: string, index: number) => {
     setSelectedIndex(index);
     if (selectionMode === 'all') return;
@@ -207,13 +236,15 @@ export default function PromptsPage() {
       ...prompts,
       posters: prompts.posters.map((poster) => {
         const editedPrompt = editablePromptEnById[poster.id];
+        const basePrompt =
+          poster.runtimePromptAnchorEn || poster.runtimePromptEn || poster.promptEn;
         const effectivePrompt =
           typeof editedPrompt === 'string' && editedPrompt.trim().length > 0
             ? editedPrompt
-            : poster.promptEn;
+            : basePrompt;
         return {
           ...poster,
-          promptEn: effectivePrompt,
+          runtimePromptAnchorEn: effectivePrompt,
         };
       }),
     };
@@ -229,7 +260,7 @@ export default function PromptsPage() {
           ← 上一步
         </Button>
         <Button size="lg" onClick={handleGenerate}>
-          开始生成海报 ({selectedPosterIdsForOutput.length}张 · {qualityModeMeta.label}) →
+          开始生成海报 ({selectedPosterIdsForOutput.length}张 · {qualityModeMeta.label} · {FIXED_GENERATION_MODE_LABEL}) →
         </Button>
       </div>
 
@@ -288,7 +319,17 @@ export default function PromptsPage() {
       <Card className="studio-panel p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold tracking-wide">海报类型选择</h3>
-          <span className="text-xs text-muted-foreground">{safeSelectedIndex + 1}/{prompts.posters.length}</span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={applyQuickValidationPreset}
+              className="h-7 px-2 text-[11px]"
+            >
+              快速预设 01/04/09
+            </Button>
+            <span className="text-xs text-muted-foreground">{safeSelectedIndex + 1}/{prompts.posters.length}</span>
+          </div>
         </div>
         <div className="glass-scrollbar flex gap-2 overflow-x-auto pb-1">
           {prompts.posters.map((poster, index) => (
@@ -340,7 +381,7 @@ export default function PromptsPage() {
             <Button
               variant="outline"
               onClick={handleResetPromptEn}
-              disabled={currentPromptEn === currentPrompt.promptEn}
+              disabled={currentPromptEn === currentPromptBaseEn}
             >
               恢复英文模板
             </Button>
@@ -364,14 +405,14 @@ export default function PromptsPage() {
               className="glass-scrollbar w-full rounded-xl border border-border/70 bg-secondary/40 p-4 text-sm leading-6 outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/40"
             />
             <p className="mt-2 text-xs text-muted-foreground">
-              这里的英文 Prompt 会直接用于实际生成；可针对单张海报定向优化。
+              当前固定使用“短主提示词 + 锚点版式”生成；可直接微调锚点与文案。
             </p>
           </div>
 
           <div>
             <h4 className="mb-2 font-semibold">负面词</h4>
             <div className="glass-scrollbar max-h-36 overflow-y-auto rounded-xl border border-border/70 bg-secondary/40 p-4 text-sm whitespace-pre-wrap">
-              {currentPrompt.negative}
+              {currentNegative}
             </div>
           </div>
         </div>

@@ -43,6 +43,11 @@ export interface AnalysisResponse {
   };
   recommendedStyle: string;
   recommendedTypography: string;
+  styleDirection?: {
+    primary: string;
+    secondary: string;
+    tags: string[];
+  };
 }
 
 export type PosterAspectRatio =
@@ -56,12 +61,14 @@ export type PosterAspectRatio =
   | '21:9';
 
 export type GenerationQualityMode = 'fast' | 'balanced' | 'quality';
+export type GenerationPipelineMode = 'one_pass_layout_anchor';
 
 export interface StyleConfig {
   visual: string;
   typography: string;
   textLayout: 'stacked' | 'parallel' | 'separated';
   aspectRatio: PosterAspectRatio;
+  promptStyle?: 'concise' | 'detailed'; // 提示词风格：简洁型(150-250字) 或 详细型(600-1000字)
 }
 
 export interface PosterOverlayPalette {
@@ -93,6 +100,9 @@ export interface PosterPrompt {
   promptEn: string;
   negative: string;
   runtimePromptEn?: string;
+  runtimePromptAnchorEn?: string;
+  runtimeMainPromptEn?: string;
+  runtimeLayoutPromptEn?: string;
   runtimeNegative?: string;
   overlaySpec?: PosterOverlaySpec;
 }
@@ -107,7 +117,11 @@ export interface GeneratedPoster {
   url: string;
   status: 'completed' | 'failed';
   rawUrl?: string;
+  usedFlashFallback?: boolean;
   overlayApplied?: boolean;
+  generationMode?: GenerationPipelineMode;
+  promptSource?: string;
+  negativeSource?: string;
   versions?: GeneratedPosterVersion[];
   activeVersionId?: string;
 }
@@ -128,6 +142,7 @@ interface AppState {
   selectedStyle: StyleConfig | null;
   selectedPosterIds: string[] | null;
   selectedQualityMode: GenerationQualityMode;
+  selectedGenerationMode: GenerationPipelineMode;
   generatedPrompts: PromptsSystem | null;
   generatedPosters: GeneratedPoster[] | null;
   isLoading: boolean;
@@ -142,6 +157,7 @@ interface AppActions {
   setSelectedStyle: (style: StyleConfig) => void;
   setSelectedPosterIds: (ids: string[] | null) => void;
   setSelectedQualityMode: (mode: GenerationQualityMode) => void;
+  setSelectedGenerationMode: (mode: GenerationPipelineMode) => void;
   setGeneratedPrompts: (prompts: PromptsSystem) => void;
   setGeneratedPosters: (posters: GeneratedPoster[]) => void;
   setLoading: (loading: boolean) => void;
@@ -157,6 +173,7 @@ const initialState: AppState = {
   selectedStyle: null,
   selectedPosterIds: null,
   selectedQualityMode: 'quality',
+  selectedGenerationMode: 'one_pass_layout_anchor',
   generatedPrompts: null,
   generatedPosters: null,
   isLoading: false,
@@ -203,6 +220,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, selectedQualityMode: mode }));
   }, []);
 
+  const setSelectedGenerationMode = useCallback((mode: GenerationPipelineMode) => {
+    setState((prev) => ({ ...prev, selectedGenerationMode: mode }));
+  }, []);
+
   const setGeneratedPrompts = useCallback((prompts: PromptsSystem) => {
     setState((prev) => ({ ...prev, generatedPrompts: prompts }));
   }, []);
@@ -231,6 +252,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedStyle,
     setSelectedPosterIds,
     setSelectedQualityMode,
+    setSelectedGenerationMode,
     setGeneratedPrompts,
     setGeneratedPosters,
     setLoading,
@@ -244,6 +266,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedStyle,
     setSelectedPosterIds,
     setSelectedQualityMode,
+    setSelectedGenerationMode,
     setGeneratedPrompts,
     setGeneratedPosters,
     setLoading,

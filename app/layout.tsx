@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/contexts/AppContext";
 import { ErrorBoundary } from "@/lib/errors/errorBoundary";
 import { Toaster } from "sonner";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "KV Generator - 电商海报生成工具",
@@ -19,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={`${inter.className} text-foreground antialiased`} suppressHydrationWarning>
+      <body className="text-foreground antialiased" suppressHydrationWarning>
         <ErrorBoundary>
           <AppProvider>
             <div className="min-h-screen">
