@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generatePoster } from '@/lib/api/nanobanana';
+import { normalizeApiError } from '@/lib/api/apiError';
 
 export const runtime = 'nodejs';
 
@@ -40,11 +41,20 @@ export async function POST(request: NextRequest) {
       usedImageModel: result.usedModel,
     });
   } catch (error) {
+    const normalized = normalizeApiError(error, 'Generate API failed');
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : 'Generate API failed',
+        error: normalized.message,
+        retryable: normalized.retryable,
+        retryAfterMs: normalized.retryAfterMs,
       },
-      { status: 500 }
+      {
+        status: normalized.status,
+        headers:
+          typeof normalized.retryAfterMs === 'number'
+            ? { 'Retry-After': String(Math.ceil(normalized.retryAfterMs / 1000)) }
+            : undefined,
+      }
     );
   }
 }

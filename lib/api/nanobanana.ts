@@ -61,9 +61,12 @@ export async function generatePoster(
 
   const analysisModel = DEFAULT_ANALYSIS_MODEL;
   const imageModel = DEFAULT_IMAGE_MODEL;
+  const fallbackToggleRaw =
+    process.env.KV_IMAGE_FALLBACK_TO_FLASH ?? process.env.ALLOW_FLASH_FALLBACK;
   const allowFlashFallback =
-    process.env.KV_IMAGE_FALLBACK_TO_FLASH === 'true' ||
-    process.env.ALLOW_FLASH_FALLBACK === 'true';
+    fallbackToggleRaw === undefined
+      ? true
+      : /^(true|1|yes|on)$/i.test(fallbackToggleRaw);
   const fallbackImageModel = allowFlashFallback
     ? resolveImageModel(
         process.env.GEMINI_IMAGE_FALLBACK_MODEL,

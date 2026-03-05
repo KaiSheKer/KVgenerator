@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeProduct } from '@/lib/api/gemini';
+import { normalizeApiError } from '@/lib/api/apiError';
 
 export const runtime = 'nodejs';
 
@@ -19,11 +20,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('[api/analyze] failed', error);
+    const normalized = normalizeApiError(error, 'Analyze API failed');
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : 'Analyze API failed',
+        error: normalized.message,
+        retryable: normalized.retryable,
+        retryAfterMs: normalized.retryAfterMs,
       },
-      { status: 500 }
+      {
+        status: normalized.status,
+        headers:
+          typeof normalized.retryAfterMs === 'number'
+            ? { 'Retry-After': String(Math.ceil(normalized.retryAfterMs / 1000)) }
+            : undefined,
+      }
     );
   }
 }

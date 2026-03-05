@@ -32,10 +32,48 @@ function isNetworkLikeError(error: unknown): boolean {
 }
 
 function shouldRetryAnalyzeStatus(status: number, message: string): boolean {
-  if (status >= 500) return true;
-  return /fetch failed|network|timeout|temporarily unavailable|service unavailable/i.test(
-    message
-  );
+  if (status >= 500 || status === 429) return true;
+  return /retry|resource_exhausted|high demand|quota|temporarily unavailable/i.test(message);
+}
+
+function shouldRetryGenerateStatus(status: number, message: string): boolean {
+  if (status >= 500 || status === 429) return true;
+  return /retry|resource_exhausted|high demand|quota|temporarily unavailable/i.test(message);
+}
+
+function parseRetryDelayMs(message: string): number | undefined {
+  const retryInfoMatch = message.match(/"retryDelay"\s*:\s*"([0-9.]+)s"/i);
+  if (retryInfoMatch) {
+    const seconds = Number(retryInfoMatch[1]);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.ceil(seconds * 1000);
+    }
+  }
+
+  const retryInMatch = message.match(/retry(?:\s+again)?\s+in\s+([0-9.]+)\s*s?/i);
+  if (retryInMatch) {
+    const seconds = Number(retryInMatch[1]);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.ceil(seconds * 1000);
+    }
+  }
+
+  return undefined;
+}
+
+function resolveRetryDelayMs(errorData: unknown, message: string): number | undefined {
+  if (
+    errorData &&
+    typeof errorData === 'object' &&
+    'retryAfterMs' in errorData &&
+    typeof (errorData as { retryAfterMs?: unknown }).retryAfterMs === 'number'
+  ) {
+    const retryAfterMs = (errorData as { retryAfterMs: number }).retryAfterMs;
+    if (Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
+      return retryAfterMs;
+    }
+  }
+  return parseRetryDelayMs(message);
 }
 
 export async function analyzeProduct(imageBase64: string): Promise<AnalysisResponse> {
@@ -66,7 +104,8 @@ export async function analyzeProduct(imageBase64: string): Promise<AnalysisRespo
           attempt < ANALYZE_MAX_NETWORK_RETRIES &&
           shouldRetryAnalyzeStatus(response.status, errorMessage)
         ) {
-          await sleep(1200 * (attempt + 1));
+          const retryAfterMs = resolveRetryDelayMs(errorData, errorMessage) ?? 1200 * (attempt + 1);
+          await sleep(retryAfterMs);
           continue;
         }
 
@@ -118,7 +157,22 @@ export async function generatePoster(request: GenerationRequest): Promise<Genera
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Generate request failed: ${response.status}`);
+        const errorMessage =
+          typeof errorData?.error === 'string'
+            ? errorData.error
+            : `Generate request failed: ${response.status}`;
+
+        if (
+          attempt < GENERATE_MAX_NETWORK_RETRIES &&
+          shouldRetryGenerateStatus(response.status, errorMessage)
+        ) {
+          const retryAfterMs =
+            resolveRetryDelayMs(errorData, errorMessage) ?? 1200 * (attempt + 1);
+          await sleep(retryAfterMs);
+          continue;
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = (await response.json()) as {

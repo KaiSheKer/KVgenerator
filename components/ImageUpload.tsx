@@ -14,9 +14,10 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 interface ImageUploadProps {
   onUpload: (file: File, preview: string) => void;
   image?: string;
+  className?: string;
 }
 
-export function ImageUpload({ onUpload, image }: ImageUploadProps) {
+export function ImageUpload({ onUpload, image, className }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const validateFile = useCallback((file: File): boolean => {
@@ -65,7 +66,8 @@ export function ImageUpload({ onUpload, image }: ImageUploadProps) {
       className={cn(
         "studio-panel relative w-full aspect-[4/3] cursor-pointer overflow-hidden p-4",
         "transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(7,10,30,0.65)]",
-        isDragging && "neon-ring border-primary/60"
+        isDragging && "neon-ring border-primary/60",
+        className
       )}
       onDrop={handleDrop}
       onDragOver={(e) => {
