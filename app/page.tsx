@@ -27,6 +27,14 @@ const HOME_BANNER_GROUPS: BannerGroup[] = [
     original: '/homebanner/cucumber-original.jpeg',
     designed: '/homebanner/cucumber-designed.png',
   },
+  {
+    original: '/homebanner/broccoli-original.jpeg',
+    designed: '/homebanner/broccoli-designed.jpg',
+  },
+  {
+    original: '/homebanner/lancome-original.jpeg',
+    designed: '/homebanner/lancome-designed.jpg',
+  },
 ];
 
 const FALLBACK_BANNER_SLIDES = [
