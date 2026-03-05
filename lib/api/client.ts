@@ -16,10 +16,11 @@ export interface GenerationResponse {
   usedImageModel?: string;
 }
 
-const GENERATE_TIMEOUT_MS = 150000;
-const GENERATE_MAX_NETWORK_RETRIES = 2;
+const GENERATE_TIMEOUT_MS = 260000;
+const GENERATE_MAX_NETWORK_RETRIES = 1;
 const ANALYZE_TIMEOUT_MS = 45000;
 const ANALYZE_MAX_NETWORK_RETRIES = 1;
+const MAX_RETRY_DELAY_MS = 15000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -29,6 +30,10 @@ function isNetworkLikeError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   if (error.name === 'AbortError') return true;
   return /failed to fetch|networkerror|load failed|network request failed/i.test(error.message);
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
 }
 
 function shouldRetryAnalyzeStatus(status: number, message: string): boolean {
@@ -70,10 +75,11 @@ function resolveRetryDelayMs(errorData: unknown, message: string): number | unde
   ) {
     const retryAfterMs = (errorData as { retryAfterMs: number }).retryAfterMs;
     if (Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
-      return retryAfterMs;
+      return Math.min(retryAfterMs, MAX_RETRY_DELAY_MS);
     }
   }
-  return parseRetryDelayMs(message);
+  const parsed = parseRetryDelayMs(message);
+  return typeof parsed === 'number' ? Math.min(parsed, MAX_RETRY_DELAY_MS) : undefined;
 }
 
 export async function analyzeProduct(imageBase64: string): Promise<AnalysisResponse> {
@@ -192,6 +198,9 @@ export async function generatePoster(request: GenerationRequest): Promise<Genera
     } catch (error) {
       clearTimeout(timer);
       lastError = error;
+      if (isAbortError(error)) {
+        break;
+      }
       if (isNetworkLikeError(error) && attempt < GENERATE_MAX_NETWORK_RETRIES) {
         await sleep(1200 * (attempt + 1));
         continue;

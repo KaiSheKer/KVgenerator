@@ -6,6 +6,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useLoading } from '@/hooks/useLoading';
 import { analyzeProduct } from '@/lib/api/client';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { restoreUploadedImageFromCache } from '@/lib/utils/uploadedImageCache';
 import type { AnalysisResponse } from '@/contexts/AppContext';
 
 const inFlightAnalyzeTasks = new Map<string, Promise<AnalysisResponse>>();
@@ -23,10 +24,11 @@ function getOrCreateAnalyzeTask(imageId: string, imagePreview: string) {
 
 export default function AnalyzePage() {
   const router = useRouter();
-  const { uploadedImage, editedProductInfo, setProductInfo } = useAppContext();
+  const { uploadedImage, editedProductInfo, setUploadedImage, setProductInfo } = useAppContext();
   const { isLoading, progress, message, startLoading, updateProgress, stopLoading } = useLoading();
   const routerRef = useRef(router);
   const handlersRef = useRef({
+    setUploadedImage,
     setProductInfo,
     startLoading,
     updateProgress,
@@ -39,17 +41,23 @@ export default function AnalyzePage() {
 
   useEffect(() => {
     handlersRef.current = {
+      setUploadedImage,
       setProductInfo,
       startLoading,
       updateProgress,
       stopLoading,
     };
-  }, [setProductInfo, startLoading, stopLoading, updateProgress]);
+  }, [setUploadedImage, setProductInfo, startLoading, stopLoading, updateProgress]);
 
   useEffect(() => {
     const imageId = uploadedImage?.id;
     const imagePreview = uploadedImage?.preview;
     if (!imageId || !imagePreview) {
+      const restored = restoreUploadedImageFromCache();
+      if (restored) {
+        handlersRef.current.setUploadedImage(restored);
+        return;
+      }
       routerRef.current.push('/');
       return;
     }

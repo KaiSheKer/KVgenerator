@@ -8,6 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ImageUpload } from '@/components/ImageUpload';
 import { useAppContext } from '@/contexts/AppContext';
+import {
+  persistUploadedImageCache,
+  restoreUploadedImageFromCache,
+} from '@/lib/utils/uploadedImageCache';
 
 type BannerGroup = {
   original: string;
@@ -219,7 +223,6 @@ function BannerImageCard({
                 fill
                 priority
                 unoptimized
-                quality={100}
                 className="object-contain"
               />
             </div>
@@ -237,7 +240,6 @@ function BannerImageCard({
                 fill
                 priority
                 unoptimized
-                quality={100}
                 className="object-contain object-center"
               />
             </div>
@@ -335,9 +337,9 @@ function PreviewStage({
 
 export default function HomePage() {
   const router = useRouter();
-  const { setUploadedImage } = useAppContext();
-  const [imagePreview, setImagePreview] = useState<string>('');
+  const { uploadedImage, setUploadedImage } = useAppContext();
   const [bannerIndex, setBannerIndex] = useState(0);
+  const imagePreview = uploadedImage?.preview || '';
 
   const hasUploadedBannerGroups = HOME_BANNER_GROUPS.length > 0;
   const bannerCount = hasUploadedBannerGroups
@@ -361,15 +363,23 @@ export default function HomePage() {
     return () => window.clearInterval(timer);
   }, [imagePreview, bannerCount]);
 
+  useEffect(() => {
+    if (uploadedImage) return;
+    const restored = restoreUploadedImageFromCache();
+    if (restored) {
+      setUploadedImage(restored);
+    }
+  }, [setUploadedImage, uploadedImage]);
+
   const handleUpload = (file: File, preview: string) => {
-    const uploadedImage = {
+    const nextUploadedImage = {
       id: Date.now().toString(),
       file,
       preview,
       url: preview,
     };
-    setUploadedImage(uploadedImage);
-    setImagePreview(preview);
+    setUploadedImage(nextUploadedImage);
+    persistUploadedImageCache(nextUploadedImage);
   };
 
   const handleAnalyze = () => {

@@ -46,7 +46,7 @@ interface GenerationResult {
 }
 
 const DEFAULT_ANALYSIS_MODEL = 'gemini-3-flash-preview';
-const DEFAULT_IMAGE_MODEL = 'gemini-3-pro-image-preview';
+const DEFAULT_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const DEFAULT_FLASH_FALLBACK_MODEL = 'gemini-2.5-flash-image';
 
 const MAX_CONSTRAINT_RETRIES = 2;
@@ -60,17 +60,24 @@ export async function generatePoster(
   }
 
   const analysisModel = DEFAULT_ANALYSIS_MODEL;
-  const imageModel = DEFAULT_IMAGE_MODEL;
+  const imageModel = resolveImageModel(
+    process.env.GEMINI_IMAGE_MODEL,
+    DEFAULT_IMAGE_MODEL
+  );
   const fallbackToggleRaw =
     process.env.KV_IMAGE_FALLBACK_TO_FLASH ?? process.env.ALLOW_FLASH_FALLBACK;
   const allowFlashFallback =
     fallbackToggleRaw === undefined
       ? true
       : /^(true|1|yes|on)$/i.test(fallbackToggleRaw);
+  const defaultFallbackModel =
+    imageModel === DEFAULT_FLASH_FALLBACK_MODEL
+      ? DEFAULT_IMAGE_MODEL
+      : DEFAULT_FLASH_FALLBACK_MODEL;
   const fallbackImageModel = allowFlashFallback
     ? resolveImageModel(
         process.env.GEMINI_IMAGE_FALLBACK_MODEL,
-        DEFAULT_FLASH_FALLBACK_MODEL
+        defaultFallbackModel
       )
     : '';
 
@@ -160,7 +167,7 @@ export async function generatePoster(
     }
 
     throw new Error('Poster generation failed after constraint retries');
-  }, 5, 2000);
+  }, 2, 1500);
 }
 
 export async function generatePosterMock(

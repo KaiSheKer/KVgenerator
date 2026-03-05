@@ -3,6 +3,7 @@ import { AppError, ErrorType } from './errorTypes';
 type RetryableError = Error & {
   retryAfterMs?: number;
 };
+const MAX_RETRY_WAIT_MS = 12000;
 
 function shouldRetryError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
@@ -70,7 +71,7 @@ export async function withRetry<T>(
           : undefined;
       const waitMs =
         typeof retryAfterMs === 'number' && Number.isFinite(retryAfterMs) && retryAfterMs > 0
-          ? retryAfterMs
+          ? Math.min(retryAfterMs, MAX_RETRY_WAIT_MS)
           : delay * (i + 1);
       console.log(`重试第 ${i + 1} 次,等待 ${Math.ceil(waitMs / 1000)} 秒...`);
       await new Promise(resolve => setTimeout(resolve, waitMs));
