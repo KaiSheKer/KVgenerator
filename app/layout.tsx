@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppProvider } from "@/contexts/AppContext";
 import { ErrorBoundary } from "@/lib/errors/errorBoundary";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "KV Generator - 电商海报生成工具",
@@ -45,6 +46,7 @@ export default function RootLayout({
             <Toaster />
           </AppProvider>
         </ErrorBoundary>
+        <Analytics />
       </body>
     </html>
   );
